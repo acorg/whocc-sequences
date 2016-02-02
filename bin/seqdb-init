@@ -1,0 +1,235 @@
+#! /usr/bin/env python3
+# -*- Python -*-
+
+"""
+Initialize seqdb with old WHO CC sequence data.
+"""
+
+import sys, os, glob, re, json, traceback
+if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
+sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
+import logging; module_logger = logging.getLogger(__name__)
+import whoccseq.fasta as fasta_m
+
+# ----------------------------------------------------------------------
+
+def main(args):
+    files = collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))
+    db = scan(files)
+
+# ----------------------------------------------------------------------
+
+def collect_files(source_dir):
+    r = {}                                # lab -> subtype -> filename
+    for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2")):
+        lab, subtype, *rest = os.path.basename(fn).split("-")
+        r.setdefault(lab.upper(), {}).setdefault(subtype.upper(), []).append(fn)
+    module_logger.debug('{} fasta files found for {} {}'.format(sum(len(e2) for e1 in r.values() for e2 in e1.values()), sorted(r), sorted(set().union(*[set(s) for s in r.values()]))))
+    return r
+
+# ----------------------------------------------------------------------
+
+def scan(files):
+    db = {}
+    for lab, lab_entry in files.items():
+        for virus_type, filenames in lab_entry.items():
+            data = scan_fasta(filenames, lab=lab, virus_type=virus_type)
+            if lab == "GISAID":
+                split_gisaid_by_lab(virus_type=virus_type, data=data, db=db)
+            else:
+                db.setdefault(lab, {}).setdefault(virus_type, {}).update(data)
+
+# ----------------------------------------------------------------------
+
+NAME_TYPE_WHOCC_FASTA_MATCH = 'whocc_fasta_match'
+
+def scan_fasta(filenames, lab, virus_type):
+    global NAME_TYPE_WHOCC_FASTA_MATCH
+    n_virus_type = normalize_virus_type(virus_type)
+    parser = fasta_m.FastaReaderWithNameParsing(lab=lab, virus_type=n_virus_type, uppercase_sequences=True)
+    if lab == 'CDC':
+        parser_csv = fasta_m.FastaReaderWithCSV_CDC(lab=lab, virus_type=n_virus_type, uppercase_sequences=True)
+    else:
+        parser_csv = fasta_m.FastaReaderWithCSV(lab=lab, virus_type=n_virus_type, uppercase_sequences=True)
+    result = {}
+    for filename in filenames:
+        module_logger.info('---   {}'.format(filename))
+        csv_filename = filename.replace('.fas.bz2', '.csv.bz2')
+        if os.path.isfile(csv_filename):
+            data = [fix_raw_entry(entry) for entry in parser_csv.read(filename=filename, csv_filename=csv_filename, name_type=NAME_TYPE_WHOCC_FASTA_MATCH)]
+        else:
+            data = [fix_raw_entry(entry) for entry in parser.read(filename, name_type=NAME_TYPE_WHOCC_FASTA_MATCH)]
+        data = filter_out_non_ha_gene(data)
+        check_passages(data, filename=os.path.basename(filename), lab=lab)
+        module_logger.info('---   {} sequences imported'.format(len(data)))
+        update_scan_result(result, data, lab, virus_type, filename=os.path.basename(filename))
+    postprocess(result, lab, virus_type)
+    return result
+
+# ----------------------------------------------------------------------
+
+def fix_raw_entry(entry):
+    entry['sequences'] = [entry['sequence']]
+    entry.pop('sequence')
+    return entry
+
+# ----------------------------------------------------------------------
+
+def filter_out_non_ha_gene(data):
+    return [entry for entry in data if entry.get('gene', 'HA').upper() == 'HA']
+
+# ----------------------------------------------------------------------
+
+def check_passages(data, filename, lab):
+    num_passages = sum(1 for entry in data if entry.get('passage'))
+    if num_passages == 0:
+        if lab != 'NIID':
+            module_logger.warning('[NOPASSAGES] [{}] No passages!'.format(filename))
+    elif num_passages < len(data):
+        module_logger.warning('[FEWPASSAGES] [{}] few passages {}/{}'.format(filename, num_passages, len(data)))
+
+# ----------------------------------------------------------------------
+
+def update_scan_result(result, data, lab, virus_type, filename):
+
+    def get_key(entry):
+        try:
+            return entry['name']
+        except KeyError:
+            module_logger.error('update_scan_result no "name" in {}'.format(entry))
+            raise
+
+    def get_key_cdc(entry):
+        k = entry.get('lab_id')
+        if not k or not re.match(r'^\d{10}$', k):
+            module_logger.warning('[NOCDCID] update_scan_result no or incorrect lab_id:{} in {}'.format(entry.get('lab_id'), entry.get('raw_name')))
+            k = get_key(entry)
+        k = 'CDC#{}'.format(k)
+        return k
+
+    def get_key_gisaid(entry):
+        lab = entry.get("lab")
+        if lab == "CDC":
+            k = get_key_cdc(entry)
+        else:
+            k = get_key(entry)
+        return k
+
+    if lab == 'CDC':
+        gkey = get_key_cdc
+    elif lab == 'GISAID':
+        gkey = get_key_gisaid
+    else:
+        gkey = get_key
+    for entry in data:
+        k = gkey(entry)
+        rentry = result.get(k)
+        if rentry:
+            merge_in(rentry, entry, k, lab, virus_type, filename)
+        else:
+            result[k] = [entry]
+
+# ----------------------------------------------------------------------
+
+def merge_in(rentry, entry, key, lab, virus_type, filename):
+    append = True
+    for existing in rentry:
+        if existing.get('passage') == entry.get('passage'):
+            existing['sequences'].extend(entry['sequences'])   # collect all sequences, to choose the most recent one later (in postprocess)
+            append = False
+            break
+        else:
+            present = present_in_sequences(sequences=existing['sequences'], sequence=entry['sequences'][0])
+            if present:
+                if existing.get('passage') is None:
+                    existing['passage'] = entry['passage']
+                    if present == 'super':
+                        existing['sequences'].extend(entry['sequences'])
+                        existing['raw_name'] = entry['raw_name']
+                    append = False
+                elif entry.get('passage') is None:
+                    append = False
+                elif (lab == 'CDC' or (lab == "GISAID" and entry.get("lab") == "CDC")) and entry['passage'] and entry['passage'][-1] == ')' and existing['passage'] == entry['passage'][:len(existing['passage'])]:
+                    # passages are the same, but entry also has date
+                    existing['passage'] = entry['passage']
+                    append = False
+                elif (lab == 'CDC' or (lab == "GISAID" and entry.get("lab") == "CDC")) and entry['passage'] and existing['passage'][-1] == ')' and entry['passage'] == existing['passage'][:len(entry['passage'])]:
+                    # passages are the same, but existing also has date
+                    append = False
+                else:
+                    module_logger.warning('[SAMESEQ] [{}] {} {}: the same sequence for {!r} for different passages: {!r} and {!r}'.format(filename, lab, virus_type, key, existing.get('passage'), entry.get('passage')))
+                break
+    if append:
+        rentry.append(entry)
+
+# ----------------------------------------------------------------------
+
+def present_in_sequences(sequences, sequence):
+    """Returns None if sequence not in sequences, 'sub' if sequence is a sub-string of one of the sequences entries, 'super' if sequence is a super-string of one of the sequences entries."""
+    present = None
+    for existing in sequences:
+        if sequence in existing:
+            present = 'sub'
+            break
+        elif existing in sequence:
+            present = 'super'
+            break
+    return present
+
+# ----------------------------------------------------------------------
+
+def split_gisaid_by_lab(virus_type, data, db):
+    for k, e in data.items():
+        for ee in e:
+            try:
+                db.setdefault(ee["lab"], {}).setdefault(virus_type, {}).setdefault(k, []).append(ee)
+            except Exception as err:
+                module_logger.error('{}: {}'.format(err, ee))
+                raise
+    return db
+
+# ----------------------------------------------------------------------
+
+def postprocess(result, lab, virus_type):
+    # If there are multiple sequences per name/passage, choose the last one (Colin's request of Wed, 4 Sep 2013 20:04:22 +0200)
+    for name, entries in result.items():
+        for entry in entries:
+            entry['sequence'] = entry['sequences'][-1]
+            if len(entry['sequences']) > 1:
+                additional_sequences = set(entry['sequences'])
+                additional_sequences.discard(entry['sequence'])
+                entry['additional_sequences'] = additional_sequences
+            entry.pop('sequences')
+
+# ----------------------------------------------------------------------
+
+def normalize_virus_type(vt):
+    if vt.upper() in ('B', 'BV', 'BY', 'BVIC', 'BYAM', 'B/VIC', 'B/YAM'):
+        vt = 'B'
+    elif vt.upper() in ('H1PDM', 'H1SEAS'):
+        vt = 'A(H1N1)'
+    elif vt.upper() == 'H3':
+        vt = 'A(H3N2)'
+    return vt
+
+# ----------------------------------------------------------------------
+
+try:
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    # parser.add_argument('input', nargs=1, help='Fasta file to process.')
+    # parser.add_argument('output', nargs=1, help='Output file name.')
+    parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
+    parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel, format="%(levelname)s: %(message)s")
+    exit_code = main(args)
+except Exception as err:
+    logging.error('{}\n{}'.format(err, traceback.format_exc()))
+    exit_code = 1
+exit(exit_code)
+
+# ======================================================================
+### Local Variables:
+### eval: (if (fboundp 'eu-rename-buffer) (eu-rename-buffer))
+### End:
