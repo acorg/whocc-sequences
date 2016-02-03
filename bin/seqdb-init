@@ -9,15 +9,16 @@ import sys, os, glob, re, json, traceback
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
-from whoccseq import fasta as fasta_m, fasta_old
+from whoccseq import fasta as fasta_m, fasta_old, acmacs
 
 # ----------------------------------------------------------------------
 
 def main(args):
+    acmacs.api(args.acmacs_url)
     data = sum((read_file(file_entry) for file_entry in collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))), [])
-    data = list(map(lambda e: (e.setdefault("gene", args.default_gene), e)[1], data))
-    # normalize name
-    # normalize passage
+    data = list(map(lambda e: (e.setdefault("gene", args.default_gene), e)[1], data)) # add default gene
+    normalize_names(data)
+    normalize_passages(data)
 
     for e in data:
         if not e.get("name"):
@@ -67,6 +68,39 @@ def collect_files(source_dir):
     r.sort(key=lambda e: e["date"])
     module_logger.debug('{} fasta files found for {} {}'.format(len(r), sorted(set(e["lab"] for e in r)), sorted(set(e["virus_type"] for e in r))))
     return r
+
+# ----------------------------------------------------------------------
+
+def normalize_names(data):
+    names = set(e["name"] for e in data if e.get("name"))
+    module_logger.info('{} names to normalize'.format(len(names)))
+    normalized = acmacs.normalize_names(names)
+    # module_logger.info('{} normalized names'.format(len(set(normalized.values()))))
+    for entry in data:
+        if entry.get("name"):
+            norm = normalized[entry["name"]]
+            if norm[:2] == "A/" and entry["virus_type"][0] == "A":
+                norm = "{}{}".format(entry["virus_type"], norm[1:])
+            elif norm[1] != "/" and norm.count("/") == 2:
+                norm = "{}/{}".format(entry["virus_type"], norm)
+            if norm != entry["name"]:
+                entry["raw_name"] = entry["name"]
+                entry["name"] = norm
+                # print(entry["raw_name"], "\t", entry["name"])
+
+# ----------------------------------------------------------------------
+
+def normalize_passages(data):
+    passages = set(e["passage"] for e in data if e.get("passage"))
+    module_logger.info('{} passages to normalize'.format(len(passages)))
+    normalized = acmacs.normalize_passages(passages)
+    module_logger.info('{} normalized passages'.format(len(set(normalized.values()))))
+    for entry in data:
+        if entry.get("passage"):
+            norm = normalized[entry["passage"]]
+            if norm != entry["passage"]:
+                entry["raw_passage"] = entry["passage"]
+                entry["passage"] = norm
 
 # ----------------------------------------------------------------------
 
@@ -255,8 +289,9 @@ try:
     parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
+    parser.add_argument('--acmacs', action='store', dest='acmacs_url', default='https://localhost:1168', help='AcmacsWeb server host and port, e.g. https://localhost:1168.')
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel, format="%(levelname)s: %(message)s")
+    logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
     exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
