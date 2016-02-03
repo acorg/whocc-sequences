@@ -15,10 +15,25 @@ from whoccseq import fasta as fasta_m, fasta_old
 
 def main(args):
     data = sum((read_file(file_entry) for file_entry in collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))), [])
-    fields = set()
+    data = list(map(lambda e: (e.setdefault("gene", args.default_gene), e)[1], data))
+    # normalize name
+    # normalize passage
+
     for e in data:
-        fields |= set(e)
-    print('fields', sorted(fields))
+        if not e.get("name"):
+            module_logger.error('No name in {}'.format(e))
+        if not e.get("sequence"):
+            module_logger.error('No sequence in {}'.format(e))
+
+    print("entries", len(data))
+    fields = {}
+    for e in data:
+        for f in e:
+            if f in fields:
+                fields[f] += 1
+            else:
+                fields[f] = 1
+    print('fields', fields)
     with open("/tmp/a.json", "w") as f: json.dump(data, f, indent=2, sort_keys=True)
 
 # ----------------------------------------------------------------------
@@ -239,6 +254,7 @@ try:
     # parser.add_argument('output', nargs=1, help='Output file name.')
     parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
+    parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s: %(message)s")
     exit_code = main(args)

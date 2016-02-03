@@ -43,6 +43,7 @@ class FastaReaderWithCSV:
         if name_entry:
             entry.update(name_entry)
             entry["sequence"] = sequence
+            entry["source"] = self.csv_name
             # module_logger.info('entry for {}'.format(entry['name']))
         else:
             if raw_name[-2:] not in ["_1", "_2", "_3", "_5", "_6", "_7", "_8"]:
@@ -76,7 +77,15 @@ class FastaReaderWithCSV:
             return super().name_only(raw_name, m, report_prefix)
 
     def _update_entry(self, entry):
-        e = {k: v for k, v in entry.items() if k not in ["fasta_id", "", "hi date", "date_selected_for_vaccine", "update_date"] and v}
+
+        for ft, f in (("lab_id", ["lab num", "lab #", "labnumber", "lab id"]), ("passage", ["passage history", "passage history-of received"])):
+            if ft not in entry:
+                for ff in f:
+                    if ff in entry:
+                        entry[ft] = entry[ff]
+                        break
+
+        e = {k: v for k, v in entry.items() if k in ["lab_id", "date", "passage", "gene", "sequence", "name", "source"] and v}
         e.update(lab=self.lab, virus_type=self.virus_type)
         return e
 
