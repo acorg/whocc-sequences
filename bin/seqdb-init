@@ -14,8 +14,12 @@ from whoccseq import fasta as fasta_m, fasta_old
 # ----------------------------------------------------------------------
 
 def main(args):
-    for file_entry in collect_files(os.path.expandvars(os.path.expanduser(args.source_dir))):
-        data = read_file(file_entry)
+    data = sum((read_file(file_entry) for file_entry in collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))), [])
+    fields = set()
+    for e in data:
+        fields |= set(e)
+    print('fields', sorted(fields))
+    with open("/tmp/a.json", "w") as f: json.dump(data, f, indent=2, sort_keys=True)
 
 # ----------------------------------------------------------------------
 
@@ -24,7 +28,8 @@ def read_file(file_entry):
     if os.path.isfile(csv_filename):
         data = fasta_old.read_fasta_with_csv(fasta_file=file_entry["f"], csv_file=csv_filename, **file_entry)
     else:
-        pass
+        data = fasta_m.read_fasta_with_name_parsing(fasta_file=file_entry["f"], **file_entry)
+    return data
 
 # ----------------------------------------------------------------------
 

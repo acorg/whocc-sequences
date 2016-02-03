@@ -33,8 +33,8 @@ class FastaReaderWithCSV:
         self.csv_fields = None
         self.not_found_in_csv = 0
         name_data = {entry['fasta_id']: entry for entry in (self.read_csv_entry(csv_entry, csv_f.name) for csv_entry in csv.reader(csv_f)) if entry}
-        r = [e for e in (self.name_extract_from_csv(raw_name=raw_name, sequence=sequence, name_data=name_data) for raw_name, sequence in fasta_m.read_from_string(fasta_f.read(), fasta_f.name)) if e]
-        module_logger.info('{} sequences imported ({} ignored) from {} {}'.format(len(r), self.not_found_in_csv, fasta_f.name, self.csv_name))
+        r = [self._update_entry(e) for e in (self.name_extract_from_csv(raw_name=raw_name, sequence=sequence, name_data=name_data) for raw_name, sequence in fasta_m.read_from_string(fasta_f.read(), fasta_f.name)) if e]
+        module_logger.debug('{} sequences imported ({} ignored) from {} {}'.format(len(r), self.not_found_in_csv, fasta_f.name, self.csv_name))
         return r
 
     def name_extract_from_csv(self, raw_name, sequence, name_data):
@@ -46,7 +46,7 @@ class FastaReaderWithCSV:
             # module_logger.info('entry for {}'.format(entry['name']))
         else:
             if raw_name[-2:] not in ["_1", "_2", "_3", "_5", "_6", "_7", "_8"]:
-                module_logger.warning('[NOCSVENTRY]: no entry in {!r} for {!r} {!r}'.format(self.csv_name, entry['name'], raw_name))
+                module_logger.debug('[NOCSVENTRY]: no entry in {!r} for {!r} {!r}'.format(self.csv_name, entry['name'], raw_name))
             self.not_found_in_csv += 1
             entry = None
         return entry
@@ -74,6 +74,11 @@ class FastaReaderWithCSV:
             return {'name': raw_name.upper()}
         else:
             return super().name_only(raw_name, m, report_prefix)
+
+    def _update_entry(self, entry):
+        e = {k: v for k, v in entry.items() if k not in ["fasta_id", "", "hi date", "date_selected_for_vaccine", "update_date"] and v}
+        e.update(lab=self.lab, virus_type=self.virus_type)
+        return e
 
 # ======================================================================
 

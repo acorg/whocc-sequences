@@ -17,6 +17,12 @@ class FastaReaderError (Exception):
 
 # ======================================================================
 
+def read_from_file(filename):
+    """Yields tuple (name, sequence) for each entry in the file"""
+    yield from read_from_string(open_file.open_for_reading_text(filename), filename)
+
+# ----------------------------------------------------------------------
+
 def read_from_string(source, filename):
     """Yields tuple (name, sequence) for each entry in the string"""
     sequence = []
@@ -47,6 +53,24 @@ def _check_sequence(sequence, name, filename, line_no):
     if not sReSequence.match(sequence):
         raise FastaReaderError('{filename}:{line_no}: invalid sequence read: {sequence}'.format(sequence=sequence, filename=filename, line_no=line_no))
     return sequence
+
+# ----------------------------------------------------------------------
+
+def read_fasta_with_name_parsing(fasta_file, lab, virus_type, **_):
+    """Returns list of dict {"name":, "sequence":, "date":, "lab":}"""
+    np = name_parser()
+
+    def make_entry(raw_name, sequence):
+        n_entry = np.parse(raw_name)
+        if not n_entry:
+            raise RuntimeError("Cannot parse name: {!r}".format(raw_name))
+        entry = {"sequence": sequence, "lab": lab, "virus_type": virus_type}
+        entry.update(n_entry)
+        return entry
+
+    r = [make_entry(raw_name, sequence) for raw_name, sequence in read_from_string(open_file.open_for_reading_text(fasta_file).read(), fasta_file)]
+    module_logger.debug('{} sequences imported from {}'.format(len(r), fasta_file))
+    return r
 
 # ----------------------------------------------------------------------
 
@@ -84,7 +108,7 @@ class NameParser:
         for rex, func_name in self.parsers:
             m = rex.match(raw_name)
             if m:
-                return func_name(raw_name, m)
+                return {k: v for k, v in func_name(raw_name, m).items() if v}
         return None
 
     def simple(self, raw_name, m):
