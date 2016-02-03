@@ -125,6 +125,7 @@ class FileBinaryReader:
 
     def __init__(self, filename):
         self.filename = filename
+        self.name = filename
         self.open_xz()
 
     def read(self, size=-1):
