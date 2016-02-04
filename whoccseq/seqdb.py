@@ -72,6 +72,7 @@ class SeqDB:
                 entry = {"data": [], "virus_type": data["virus_type"], "dates": []}
                 self.names[data["name"]] = entry
             self._update_db_entry(entry, data)
+            self._update_cdcid(data)
         else:
             module_logger.warning('Entry without name: {}'.format(data["lab_id"]))
 
@@ -134,6 +135,17 @@ class SeqDB:
             entry_passage["gene"] = data["gene"]
         if sequence_match in ["super", "new"]:   # update sequences with the longer one
             entry_passage["sequence"] = data["sequence"]
+
+    def _update_cdcid(self, data):
+        if data["lab"] == "CDC" and data.get("lab_id"):
+            if len(data["lab_id"]) >= 8:
+                existing = self.cdcids.get(data["lab_id"])
+                if existing is None:
+                    self.cdcids[data["lab_id"]] = data["name"]
+                elif existing != data["name"]:
+                    module_logger.warning('[CDCID] {!r} for another name: {!r} existing: {!r}'.format(data["lab_id"], data["name"], existing))
+            else:
+                module_logger.warning('[CDCID] too short (ignored) {!r} {!r}'.format(data["lab_id"], data["name"]))
 
         # --------------------------------------------------
 
