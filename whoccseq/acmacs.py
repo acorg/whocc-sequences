@@ -41,6 +41,15 @@ def normalize_passages(passages):
 
 # ----------------------------------------------------------------------
 
+def normalize_dates(dates):
+    source = list(dates)
+    response = api().execute({"C": "date_normalize", "dates": source})
+    mapping = dict(zip(source, response["dates"]))
+    # module_logger.info('Dates:\n{}'.format(json.dumps(mapping, indent=2, sort_keys=True)))
+    return mapping
+
+# ----------------------------------------------------------------------
+
 class CommandError (Exception):
     """Raised by api._execute if command resposne contains error and raise_error flag is set."""
 

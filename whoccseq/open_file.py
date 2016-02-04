@@ -50,13 +50,13 @@ def read_or_get_binary(data, try_reading_from_file=True):
 
 # ======================================================================
 
-def write_json(filename, data, indent=None, sort_keys=False, bool_to_int=False, backup=True):
+def write_json(filename, data, indent=None, sort_keys=False, backup=True):
     if indent is None:
         separators=[',', ':']
     else:
         separators=[',', ': ']
     with open_for_writing_binary(filename, backup=backup) as fd:
-        fd.write(json.dumps(data, separators=separators, indent=indent, sort_keys=sort_keys, bool_to_int=bool_to_int).encode('utf-8'))
+        fd.write(json.dumps(data, separators=separators, indent=indent, sort_keys=sort_keys).encode('utf-8'))
 
 # ======================================================================
 

@@ -5,37 +5,53 @@
 Initialize seqdb with old WHO CC sequence data.
 """
 
-import sys, os, glob, re, json, traceback
+import sys, os, glob, re, json, traceback, pprint
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
+
+from whoccseq import seqdb
 from whoccseq import fasta as fasta_m, fasta_old, acmacs
 
 # ----------------------------------------------------------------------
 
 def main(args):
     acmacs.api(args.acmacs_url)
+    db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+
     data = sum((read_file(file_entry) for file_entry in collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))), [])
-    data = list(map(lambda e: (e.setdefault("gene", args.default_gene), e)[1], data)) # add default gene
-    normalize_names(data)
-    normalize_passages(data)
+    module_logger.info('{} entries to update seqdb with'.format(len(data)))
+    db.add_sequences(data)
+    db.report()
+    db.save()
 
-    for e in data:
-        if not e.get("name"):
-            module_logger.error('No name in {}'.format(e))
-        if not e.get("sequence"):
-            module_logger.error('No sequence in {}'.format(e))
+    # data = list(map(lambda e: (e.setdefault("gene", args.default_gene), e)[1], data)) # add default gene
+    # normalize_names(data)
+    # normalize_passages(data)
+    # normalize_dates(data)
 
-    print("entries", len(data))
-    fields = {}
-    for e in data:
-        for f in e:
-            if f in fields:
-                fields[f] += 1
-            else:
-                fields[f] = 1
-    print('fields', fields)
-    with open("/tmp/a.json", "w") as f: json.dump(data, f, indent=2, sort_keys=True)
+    # for e in data:
+    #     if not e.get("name"):
+    #         module_logger.error('No name in {}'.format(e))
+    #     if not e.get("sequence"):
+    #         module_logger.error('No sequence in {}'.format(e))
+
+    # print("entries", len(data))
+    # fields = {}
+    # for e in data:
+    #     for f in e:
+    #         if f in fields:
+    #             fields[f] += 1
+    #         else:
+    #             fields[f] = 1
+    # print('fields', fields)
+
+
+
+    # dates = set(e["date"] for e in data if e.get("date"))
+    # print("dates", len(dates), pprint.pformat(sorted(dates)))
+
+    # with open("/tmp/a.json", "w") as f: json.dump(data, f, indent=2, sort_keys=True)
 
 # ----------------------------------------------------------------------
 
@@ -53,15 +69,17 @@ def collect_files(source_dir):
 
     def make_entry(fn):
         lab, subtype, date, *rest = os.path.basename(fn).split("-")
-        return {"lab": lab.upper(), "virus_type": normalize_virus_type(subtype), "date": date, "f": fn}
+        return {"lab": lab.upper(), "virus_type": normalize_virus_type(subtype, fn), "date": date, "f": fn}
 
-    def normalize_virus_type(vt):
+    def normalize_virus_type(vt, fn):
         if vt.upper() in ('B', 'BV', 'BY', 'BVIC', 'BYAM', 'B/VIC', 'B/YAM'):
             vt = 'B'
         elif vt.upper() in ('H1PDM', 'H1SEAS'):
             vt = 'A(H1N1)'
         elif vt.upper() == 'H3':
             vt = 'A(H3N2)'
+        else:
+            module_logger.error('Unrecognized virus type {} in {}'.format(vt, fn))
         return vt
 
     r = [make_entry(fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2"))]
@@ -71,49 +89,54 @@ def collect_files(source_dir):
 
 # ----------------------------------------------------------------------
 
-def normalize_names(data):
-    names = set(e["name"] for e in data if e.get("name"))
-    module_logger.info('{} names to normalize'.format(len(names)))
-    normalized = acmacs.normalize_names(names)
-    # module_logger.info('{} normalized names'.format(len(set(normalized.values()))))
-    for entry in data:
-        if entry.get("name"):
-            norm = normalized[entry["name"]]
-            if norm[:2] == "A/" and entry["virus_type"][0] == "A":
-                norm = "{}{}".format(entry["virus_type"], norm[1:])
-            elif norm[1] != "/" and norm.count("/") == 2:
-                norm = "{}/{}".format(entry["virus_type"], norm)
-            if norm != entry["name"]:
-                entry["raw_name"] = entry["name"]
-                entry["name"] = norm
-                # print(entry["raw_name"], "\t", entry["name"])
+# def normalize_names(data):
+#     names = set(e["name"] for e in data if e.get("name"))
+#     module_logger.info('{} names to normalize'.format(len(names)))
+#     normalized = acmacs.normalize_names(names)
+#     # module_logger.info('{} normalized names'.format(len(set(normalized.values()))))
+#     for entry in data:
+#         if entry.get("name"):
+#             norm = normalized[entry["name"]]
+#             if norm[:2] == "A/" and entry["virus_type"][0] == "A":
+#                 norm = "{}{}".format(entry["virus_type"], norm[1:])
+#             elif norm[1] != "/" and norm.count("/") == 2:
+#                 norm = "{}/{}".format(entry["virus_type"], norm)
+#             if norm != entry["name"]:
+#                 entry["raw_name"] = entry["name"]
+#                 entry["name"] = norm
+#                 # print(entry["raw_name"], "\t", entry["name"])
+
+# # ----------------------------------------------------------------------
+
+# def normalize_passages(data):
+#     passages = set(e["passage"] for e in data if e.get("passage"))
+#     module_logger.info('{} passages to normalize'.format(len(passages)))
+#     normalized = acmacs.normalize_passages(passages)
+#     module_logger.info('{} normalized passages'.format(len(set(normalized.values()))))
+#     for entry in data:
+#         if entry.get("passage"):
+#             norm = normalized[entry["passage"]]
+#             if norm != entry["passage"]:
+#                 entry["raw_passage"] = entry["passage"]
+#                 entry["passage"] = norm
+
+# # ----------------------------------------------------------------------
+
+# def normalize_dates(data):
+#     dates = set(e["date"] for e in data if e.get("date"))
+#     module_logger.info('{} dates to normalize'.format(len(dates)))
+#     normalized = acmacs.normalize_dates(dates)
+#     module_logger.info('{} normalized dates'.format(len(set(normalized.values()))))
+#     for entry in data:
+#         if entry.get("date"):
+#             norm = normalized[entry["date"]]
+#             if norm != entry["date"]:
+#                 entry["raw_date"] = entry["date"]
+#                 entry["date"] = norm
 
 # ----------------------------------------------------------------------
-
-def normalize_passages(data):
-    passages = set(e["passage"] for e in data if e.get("passage"))
-    module_logger.info('{} passages to normalize'.format(len(passages)))
-    normalized = acmacs.normalize_passages(passages)
-    module_logger.info('{} normalized passages'.format(len(set(normalized.values()))))
-    for entry in data:
-        if entry.get("passage"):
-            norm = normalized[entry["passage"]]
-            if norm != entry["passage"]:
-                entry["raw_passage"] = entry["passage"]
-                entry["passage"] = norm
-
 # ----------------------------------------------------------------------
-
-# def scan(files):
-#     db = {}
-#     for lab, lab_entry in files.items():
-#         for virus_type, filenames in lab_entry.items():
-#             data = scan_fasta(filenames, lab=lab, virus_type=virus_type)
-#             if lab == "GISAID":
-#                 split_gisaid_by_lab(virus_type=virus_type, data=data, db=db)
-#             else:
-#                 db.setdefault(lab, {}).setdefault(virus_type, {}).update(data)
-
+# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 
 # NAME_TYPE_WHOCC_FASTA_MATCH = 'whocc_fasta_match'
@@ -140,28 +163,6 @@ def normalize_passages(data):
 #         update_scan_result(result, data, lab, virus_type, filename=os.path.basename(filename))
 #     postprocess(result, lab, virus_type)
 #     return result
-
-# # ----------------------------------------------------------------------
-
-# def fix_raw_entry(entry):
-#     entry['sequences'] = [entry['sequence']]
-#     entry.pop('sequence')
-#     return entry
-
-# # ----------------------------------------------------------------------
-
-# def filter_out_non_ha_gene(data):
-#     return [entry for entry in data if entry.get('gene', 'HA').upper() == 'HA']
-
-# # ----------------------------------------------------------------------
-
-# def check_passages(data, filename, lab):
-#     num_passages = sum(1 for entry in data if entry.get('passage'))
-#     if num_passages == 0:
-#         if lab != 'NIID':
-#             module_logger.warning('[NOPASSAGES] [{}] No passages!'.format(filename))
-#     elif num_passages < len(data):
-#         module_logger.warning('[FEWPASSAGES] [{}] few passages {}/{}'.format(filename, num_passages, len(data)))
 
 # # ----------------------------------------------------------------------
 
@@ -253,18 +254,6 @@ def normalize_passages(data):
 
 # # ----------------------------------------------------------------------
 
-# def split_gisaid_by_lab(virus_type, data, db):
-#     for k, e in data.items():
-#         for ee in e:
-#             try:
-#                 db.setdefault(ee["lab"], {}).setdefault(virus_type, {}).setdefault(k, []).append(ee)
-#             except Exception as err:
-#                 module_logger.error('{}: {}'.format(err, ee))
-#                 raise
-#     return db
-
-# # ----------------------------------------------------------------------
-
 # def postprocess(result, lab, virus_type):
 #     # If there are multiple sequences per name/passage, choose the last one (Colin's request of Wed, 4 Sep 2013 20:04:22 +0200)
 #     for name, entries in result.items():
@@ -290,6 +279,7 @@ try:
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
     parser.add_argument('--acmacs', action='store', dest='acmacs_url', default='https://localhost:1168', help='AcmacsWeb server host and port, e.g. https://localhost:1168.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
     exit_code = main(args)
