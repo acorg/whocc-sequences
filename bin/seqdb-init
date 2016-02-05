@@ -18,40 +18,30 @@ from whoccseq import fasta as fasta_m, fasta_old, acmacs
 def main(args):
     acmacs.api(args.acmacs_url)
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-
-    data = sum((read_file(file_entry) for file_entry in collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))), [])
-    module_logger.info('{} entries to update seqdb with'.format(len(data)))
-    db.add_sequences(data)
+    if args.input:
+        files = [make_file_entry(f) for f in args.input]
+    else:
+        files = collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))
+    # read_all_files_update_db(db, files)
+    read_file_one_by_one_update_db(db, files)
     db.report()
     db.save()
 
-    # data = list(map(lambda e: (e.setdefault("gene", args.default_gene), e)[1], data)) # add default gene
-    # normalize_names(data)
-    # normalize_passages(data)
-    # normalize_dates(data)
+# ----------------------------------------------------------------------
 
-    # for e in data:
-    #     if not e.get("name"):
-    #         module_logger.error('No name in {}'.format(e))
-    #     if not e.get("sequence"):
-    #         module_logger.error('No sequence in {}'.format(e))
+def read_all_files_update_db(db, files):
+    data = sum((read_file(file_entry) for file_entry in files), [])
+    module_logger.info('{} entries to update seqdb with'.format(len(data)))
+    db.add_sequences(data)
 
-    # print("entries", len(data))
-    # fields = {}
-    # for e in data:
-    #     for f in e:
-    #         if f in fields:
-    #             fields[f] += 1
-    #         else:
-    #             fields[f] = 1
-    # print('fields', fields)
+# ----------------------------------------------------------------------
 
-
-
-    # dates = set(e["date"] for e in data if e.get("date"))
-    # print("dates", len(dates), pprint.pformat(sorted(dates)))
-
-    # with open("/tmp/a.json", "w") as f: json.dump(data, f, indent=2, sort_keys=True)
+def read_file_one_by_one_update_db(db, files):
+    for f_no, file_entry in enumerate(files, start=1):
+        module_logger.info('{} {}'.format(f_no, file_entry["f"]))
+        data = read_file(file_entry)
+        module_logger.info('{} entries to update seqdb with'.format(len(data)))
+        db.add_sequences(data)
 
 # ----------------------------------------------------------------------
 
@@ -65,219 +55,40 @@ def read_file(file_entry):
 
 # ----------------------------------------------------------------------
 
+def make_file_entry(fn):
+    lab, subtype, date, *rest = os.path.basename(fn).split("-")
+    return {"lab": lab.upper(), "virus_type": normalize_virus_type(subtype, fn), "date": date, "f": fn}
+
+# ----------------------------------------------------------------------
+
+def normalize_virus_type(vt, fn):
+    if vt.upper() in ('B', 'BV', 'BY', 'BVIC', 'BYAM', 'B/VIC', 'B/YAM'):
+        vt = 'B'
+    elif vt.upper() in ('H1PDM', 'H1SEAS'):
+        vt = 'A(H1N1)'
+    elif vt.upper() == 'H3':
+        vt = 'A(H3N2)'
+    else:
+        module_logger.error('Unrecognized virus type {} in {}'.format(vt, fn))
+    return vt
+
+# ----------------------------------------------------------------------
+
 def collect_files(source_dir):
-
-    def make_entry(fn):
-        lab, subtype, date, *rest = os.path.basename(fn).split("-")
-        return {"lab": lab.upper(), "virus_type": normalize_virus_type(subtype, fn), "date": date, "f": fn}
-
-    def normalize_virus_type(vt, fn):
-        if vt.upper() in ('B', 'BV', 'BY', 'BVIC', 'BYAM', 'B/VIC', 'B/YAM'):
-            vt = 'B'
-        elif vt.upper() in ('H1PDM', 'H1SEAS'):
-            vt = 'A(H1N1)'
-        elif vt.upper() == 'H3':
-            vt = 'A(H3N2)'
-        else:
-            module_logger.error('Unrecognized virus type {} in {}'.format(vt, fn))
-        return vt
-
-    r = [make_entry(fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2"))]
+    r = [make_file_entry(fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2"))]
     r.sort(key=lambda e: e["date"])
     module_logger.debug('{} fasta files found for {} {}'.format(len(r), sorted(set(e["lab"] for e in r)), sorted(set(e["virus_type"] for e in r))))
     return r
 
 # ----------------------------------------------------------------------
 
-# def normalize_names(data):
-#     names = set(e["name"] for e in data if e.get("name"))
-#     module_logger.info('{} names to normalize'.format(len(names)))
-#     normalized = acmacs.normalize_names(names)
-#     # module_logger.info('{} normalized names'.format(len(set(normalized.values()))))
-#     for entry in data:
-#         if entry.get("name"):
-#             norm = normalized[entry["name"]]
-#             if norm[:2] == "A/" and entry["virus_type"][0] == "A":
-#                 norm = "{}{}".format(entry["virus_type"], norm[1:])
-#             elif norm[1] != "/" and norm.count("/") == 2:
-#                 norm = "{}/{}".format(entry["virus_type"], norm)
-#             if norm != entry["name"]:
-#                 entry["raw_name"] = entry["name"]
-#                 entry["name"] = norm
-#                 # print(entry["raw_name"], "\t", entry["name"])
-
-# # ----------------------------------------------------------------------
-
-# def normalize_passages(data):
-#     passages = set(e["passage"] for e in data if e.get("passage"))
-#     module_logger.info('{} passages to normalize'.format(len(passages)))
-#     normalized = acmacs.normalize_passages(passages)
-#     module_logger.info('{} normalized passages'.format(len(set(normalized.values()))))
-#     for entry in data:
-#         if entry.get("passage"):
-#             norm = normalized[entry["passage"]]
-#             if norm != entry["passage"]:
-#                 entry["raw_passage"] = entry["passage"]
-#                 entry["passage"] = norm
-
-# # ----------------------------------------------------------------------
-
-# def normalize_dates(data):
-#     dates = set(e["date"] for e in data if e.get("date"))
-#     module_logger.info('{} dates to normalize'.format(len(dates)))
-#     normalized = acmacs.normalize_dates(dates)
-#     module_logger.info('{} normalized dates'.format(len(set(normalized.values()))))
-#     for entry in data:
-#         if entry.get("date"):
-#             norm = normalized[entry["date"]]
-#             if norm != entry["date"]:
-#                 entry["raw_date"] = entry["date"]
-#                 entry["date"] = norm
-
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-# ----------------------------------------------------------------------
-
-# NAME_TYPE_WHOCC_FASTA_MATCH = 'whocc_fasta_match'
-
-# def scan_fasta(filenames, lab, virus_type):
-#     global NAME_TYPE_WHOCC_FASTA_MATCH
-#     n_virus_type = normalize_virus_type(virus_type)
-#     parser = fasta_m.FastaReaderWithNameParsing(lab=lab, virus_type=n_virus_type, uppercase_sequences=True)
-#     if lab == 'CDC':
-#         parser_csv = fasta_m.FastaReaderWithCSV_CDC(lab=lab, virus_type=n_virus_type, uppercase_sequences=True)
-#     else:
-#         parser_csv = fasta_m.FastaReaderWithCSV(lab=lab, virus_type=n_virus_type, uppercase_sequences=True)
-#     result = {}
-#     for filename in filenames:
-#         module_logger.info('---   {}'.format(filename))
-#         csv_filename = filename.replace('.fas.bz2', '.csv.bz2')
-#         if os.path.isfile(csv_filename):
-#             data = [fix_raw_entry(entry) for entry in parser_csv.read(filename=filename, csv_filename=csv_filename, name_type=NAME_TYPE_WHOCC_FASTA_MATCH)]
-#         else:
-#             data = [fix_raw_entry(entry) for entry in parser.read(filename, name_type=NAME_TYPE_WHOCC_FASTA_MATCH)]
-#         data = filter_out_non_ha_gene(data)
-#         check_passages(data, filename=os.path.basename(filename), lab=lab)
-#         module_logger.info('---   {} sequences imported'.format(len(data)))
-#         update_scan_result(result, data, lab, virus_type, filename=os.path.basename(filename))
-#     postprocess(result, lab, virus_type)
-#     return result
-
-# # ----------------------------------------------------------------------
-
-# def update_scan_result(result, data, lab, virus_type, filename):
-
-#     def get_key(entry):
-#         try:
-#             return entry['name']
-#         except KeyError:
-#             module_logger.error('update_scan_result no "name" in {}'.format(entry))
-#             raise
-
-#     def get_key_cdc(entry):
-#         k = entry.get('lab_id')
-#         if not k or not re.match(r'^\d{10}$', k):
-#             module_logger.warning('[NOCDCID] update_scan_result no or incorrect lab_id:{} in {}'.format(entry.get('lab_id'), entry.get('raw_name')))
-#             k = get_key(entry)
-#         k = 'CDC#{}'.format(k)
-#         return k
-
-#     def get_key_gisaid(entry):
-#         lab = entry.get("lab")
-#         if lab == "CDC":
-#             k = get_key_cdc(entry)
-#         else:
-#             k = get_key(entry)
-#         return k
-
-#     if lab == 'CDC':
-#         gkey = get_key_cdc
-#     elif lab == 'GISAID':
-#         gkey = get_key_gisaid
-#     else:
-#         gkey = get_key
-#     for entry in data:
-#         k = gkey(entry)
-#         rentry = result.get(k)
-#         if rentry:
-#             merge_in(rentry, entry, k, lab, virus_type, filename)
-#         else:
-#             result[k] = [entry]
-
-# # ----------------------------------------------------------------------
-
-# def merge_in(rentry, entry, key, lab, virus_type, filename):
-#     append = True
-#     for existing in rentry:
-#         if existing.get('passage') == entry.get('passage'):
-#             existing['sequences'].extend(entry['sequences'])   # collect all sequences, to choose the most recent one later (in postprocess)
-#             append = False
-#             break
-#         else:
-#             present = present_in_sequences(sequences=existing['sequences'], sequence=entry['sequences'][0])
-#             if present:
-#                 if existing.get('passage') is None:
-#                     existing['passage'] = entry['passage']
-#                     if present == 'super':
-#                         existing['sequences'].extend(entry['sequences'])
-#                         existing['raw_name'] = entry['raw_name']
-#                     append = False
-#                 elif entry.get('passage') is None:
-#                     append = False
-#                 elif (lab == 'CDC' or (lab == "GISAID" and entry.get("lab") == "CDC")) and entry['passage'] and entry['passage'][-1] == ')' and existing['passage'] == entry['passage'][:len(existing['passage'])]:
-#                     # passages are the same, but entry also has date
-#                     existing['passage'] = entry['passage']
-#                     append = False
-#                 elif (lab == 'CDC' or (lab == "GISAID" and entry.get("lab") == "CDC")) and entry['passage'] and existing['passage'][-1] == ')' and entry['passage'] == existing['passage'][:len(entry['passage'])]:
-#                     # passages are the same, but existing also has date
-#                     append = False
-#                 else:
-#                     module_logger.warning('[SAMESEQ] [{}] {} {}: the same sequence for {!r} for different passages: {!r} and {!r}'.format(filename, lab, virus_type, key, existing.get('passage'), entry.get('passage')))
-#                 break
-#     if append:
-#         rentry.append(entry)
-
-# # ----------------------------------------------------------------------
-
-# def present_in_sequences(sequences, sequence):
-#     """Returns None if sequence not in sequences, 'sub' if sequence is a sub-string of one of the sequences entries, 'super' if sequence is a super-string of one of the sequences entries."""
-#     present = None
-#     for existing in sequences:
-#         if sequence in existing:
-#             present = 'sub'
-#             break
-#         elif existing in sequence:
-#             present = 'super'
-#             break
-#     return present
-
-# # ----------------------------------------------------------------------
-
-# def postprocess(result, lab, virus_type):
-#     # If there are multiple sequences per name/passage, choose the last one (Colin's request of Wed, 4 Sep 2013 20:04:22 +0200)
-#     for name, entries in result.items():
-#         for entry in entries:
-#             entry['sequence'] = entry['sequences'][-1]
-#             if len(entry['sequences']) > 1:
-#                 additional_sequences = set(entry['sequences'])
-#                 additional_sequences.discard(entry['sequence'])
-#                 entry['additional_sequences'] = additional_sequences
-#             entry.pop('sequences')
-
-# ----------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------
-
 try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    # parser.add_argument('input', nargs=1, help='Fasta file to process.')
-    # parser.add_argument('output', nargs=1, help='Output file name.')
+    parser.add_argument('input', nargs="*", help='Fasta files to process.')
     parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
+    # parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
     parser.add_argument('--acmacs', action='store', dest='acmacs_url', default='https://localhost:1168', help='AcmacsWeb server host and port, e.g. https://localhost:1168.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()

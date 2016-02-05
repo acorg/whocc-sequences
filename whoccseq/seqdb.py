@@ -10,6 +10,14 @@ import os, sys, json
 import logging; module_logger = logging.getLogger(__name__)
 from . import open_file, acmacs
 
+# TODO
+# export fasta with encoded names
+# match HI by cdcid and by name
+#      If there are multiple sequences per name/passage, choose the last one (Colin's request of Wed, 4 Sep 2013 20:04:22 +0200)
+# convert to aa
+# align by aa, mark HA, NA
+# detect clades
+
 # ----------------------------------------------------------------------
 
 # self.names is dict {<name>: {"data": [{"passages": [<passage>], "sequence": <sequence>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
