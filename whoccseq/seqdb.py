@@ -58,6 +58,16 @@ class SeqDB:
 
         # --------------------------------------------------
 
+    def all(self):
+        return self.names
+
+    def select_by(self, field, value, source=None):
+        data = source or self.names
+        module_logger.warning('select_by not implemented')
+        return data
+
+        # --------------------------------------------------
+
     def report(self):
         print("SeqDB names:", len(self.names))
         print("SeqDB cdcids:", len(self.cdcids))
@@ -89,6 +99,7 @@ class SeqDB:
             raise RuntimeError("Cannot add {!r} to {!r} db entry\n{}\n{}".format(data["virus_type"], entry["virus_type"], data, entry))
         if data.get("date") and data["date"] not in entry["dates"]:
             entry["dates"].append(data["date"])
+            entry["dates"].sort()
         sameseq = self._look_for_the_same_sequence(entry, data)
         if sameseq is None:
             new_entry = {"labs": {}, "passages": []}

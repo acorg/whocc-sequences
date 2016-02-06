@@ -125,7 +125,7 @@ class NameParser:
     def nimr_20090914(self, raw_name, m, **_):
         return {'name': m.group('name').upper()}
 
-    mReCdcId = re.compile(r'^\s*(?P<cdcid>\d{8,10})(?:_\d{6}_v\d_\d|_\d|\s+.*)?$')
+    mReCdcId = re.compile(r'^\s*(?P<cdcid>\d{8,10})(?:_\d{6}_v\d(?:_\d)?|_\d|\s+.*)?$')
 
     def gisaid(self, raw_name, m, with_date=True, lab=None, **_):
         # module_logger.debug('gisaid with_date:{} {} --> {}'.format(with_date, raw_name, m.groupdict()))
@@ -180,6 +180,29 @@ class NameParser:
 
 # ----------------------------------------------------------------------
 
+def generate_one(name, sequence, encode):
+    return ">{}\n{}".format(encode_name(name) if encode else name, sequence_split(sequence))
+
+# ----------------------------------------------------------------------
+
+def encode_name(name):
+    for char in "% :()!*';@&=+$,?#[]":
+        name = name.replace(char, '%{:02X}'.format(ord(char)))
+    return name
+
+# ----------------------------------------------------------------------
+
+def sequence_split(sequence, chunk_len=75, separator="\n", end="\n"):
+    if chunk_len and chunk_len > 0:
+        r = separator.join(sequence[i:i+chunk_len] for i in range(0, len(sequence), chunk_len))
+    else:
+        r = sequence
+    if end and r[-1] != end:
+        r += end
+    return r
+
+# ----------------------------------------------------------------------
+
 # def generate(filename, data, names_order=None, predicate=None, sequence_access=None, split_at=75):
 #     module_logger.info('generating fasta into {}'.format(filename))
 #     with open_file.open_for_writing_binary(filename) as f:
@@ -209,12 +232,6 @@ class NameParser:
 
 # # ----------------------------------------------------------------------
 
-# # use URL-kind encoding to avoid ambiguity
-# def encode_name(name):
-#     for char in "% :()!*';@&=+$,?#[]":
-#         name = name.replace(char, '%{:02X}'.format(ord(char)))
-#     return name
-
 # sReNameDecoder = re.compile(r'%([0-9A-Fa-f][0-9A-Fa-f])')
 
 # def decode_name(name):
@@ -231,12 +248,6 @@ class NameParser:
 # #     return name.replace('^', ' ').replace('%', ':').replace('<', '(').replace('>', ')')
 
 # # ----------------------------------------------------------------------
-
-# def sequence_split(sequence, chunk_len=75, separator="\n"):
-#     if chunk_len and chunk_len > 0:
-#         return separator.join(sequence[i:i+chunk_len] for i in range(0, len(sequence), chunk_len))
-#     else:
-#         return sequence
 
 # # ----------------------------------------------------------------------
 
