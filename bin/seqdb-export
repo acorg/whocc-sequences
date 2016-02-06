@@ -17,20 +17,21 @@ from whoccseq import fasta as fasta_m, open_file
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    # lab, virus_type, sort_by, name_format, name_encode
     data = db.all()
     if args.lab:
         data = db.select_by("lab", args.lab.upper(), data)
     if args.virus_type:
-        data = db.select_by("", fix_virus_type(args.virus_type), data)
-    export(data, args)
+        data = db.select_by("virus_type", fix_virus_type(args.virus_type), data)
+    names = db.names_sorted_by(args.sort_by, data)
+    export(data, names, args)
 
 # ----------------------------------------------------------------------
 
-def export(data, args):
+def export(data, names, args):
     module_logger.info('Writing {}'.format(args.output))
     with open_file.open_for_writing_binary(args.output) as f:
-        for name, e1 in data.items():
+        for name in names:
+            e1  = data[name]
             for e2 in e1["data"]:
                 date = e1["dates"][-1] if e1.get("dates") else ""
                 lab = next(iter(e2.get("labs", {}).keys()), "")
@@ -38,7 +39,7 @@ def export(data, args):
                     lab_id = next(iter(e2["labs"][lab]), "")
                 else:
                     lab_id = ""
-                name_to_write = args.name_format.format(name=name, passage=next(iter(e2["passages"]), ""), date=date, lab_id=lab_id, lab=lab, gene=e2.get("gene", ""))
+                name_to_write = re.sub(r"\s+", " ", args.name_format.format(name=name, passage=next(iter(e2["passages"]), ""), date=date, lab_id=lab_id, lab=lab, gene=e2.get("gene", "")))
                 f.write(fasta_m.generate_one(name=name_to_write, sequence=e2["sequence"], encode=args.name_encode).encode("utf-8"))
 
 # ----------------------------------------------------------------------

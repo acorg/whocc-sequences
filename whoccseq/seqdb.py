@@ -62,9 +62,38 @@ class SeqDB:
         return self.names
 
     def select_by(self, field, value, source=None):
-        data = source or self.names
-        module_logger.warning('select_by not implemented')
+        if source is None:
+            source = self.all()
+        if field == "virus_type":
+            data = {n: e for n,e in source.items() if e[field] == value}
+        elif field == "lab":
+            def fix_lab(entry):
+                e = {f: v for f,v in entry.items() if v != "labs"}
+                e["labs"] = {value: entry["labs"][value]}
+                return e
+            def filter_lab(entry):
+                data = [fix_lab(e) for e in entry["data"] if value in e["labs"]]
+                if data:
+                    r = {f: v for f,v in entry.items() if f != "data"}
+                    r["data"] = data
+                else:
+                    r = None
+                return r
+            data = {n: e for n, e in ((nn, filter_lab(ee)) for nn, ee in source.items()) if e}
+        else:
+            raise ValueError("Unsupported field {!r} to select by".format(field))
         return data
+
+    def names_sorted_by(self, field, source=None):
+        if source is None:
+            source = self.all()
+        if field == "name":
+            r = sorted(source)
+        elif field == "date":
+            r = sorted(source, key=lambda n: source[n]["dates"][-1] if source[n].get("dates") else "0000") # entries lacking date come first
+        else:
+            raise ValueError("Unsupported field {!r} to sort by".format(field))
+        return r
 
         # --------------------------------------------------
 
