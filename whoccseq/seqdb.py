@@ -114,6 +114,8 @@ class SeqDB:
 
     def _add_sequence(self, data):
         if data.get("name"):
+            if data["name"][1] in ["/", "("] and data["name"][0] != data["virus_type"][0]:
+                module_logger.warning('Virus type ({}) and name ({}) mismatch'.format(data["virus_type"], data["name"]))
             entry = self.names.get(data["name"])
             if entry is None:
                 entry = {"data": [], "virus_type": data["virus_type"], "dates": []}
