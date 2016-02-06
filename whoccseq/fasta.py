@@ -61,7 +61,7 @@ def read_fasta_with_name_parsing(fasta_file, lab, virus_type, **_):
     np = name_parser()
 
     def make_entry(raw_name, sequence):
-        n_entry = np.parse(raw_name)
+        n_entry = np.parse(raw_name, lab=lab)
         if not n_entry:
             raise RuntimeError("Cannot parse name: {!r}".format(raw_name))
         entry = {"sequence": sequence, "lab": lab, "virus_type": virus_type}
@@ -104,14 +104,15 @@ class NameParser:
             (re.compile(r'.'), self.simple),
             )
 
-    def parse(self, raw_name):
+    def parse(self, raw_name, lab=None):
         for rex, func_name in self.parsers:
             m = rex.match(raw_name)
             if m:
-                return {k: v for k, v in func_name(raw_name, m).items() if v}
+                # module_logger.debug('NameParser {}'.format(func_name))
+                return {k: v for k, v in func_name(raw_name, m, lab=lab).items() if v}
         return None
 
-    def simple(self, raw_name, m):
+    def simple(self, raw_name, m, **_):
         return {'name': raw_name}
 
     # def nimr_glued(self, raw_name, m=None):
@@ -121,20 +122,31 @@ class NameParser:
     #         return t
     #     return {'name': '/'.join((convert_type(m.group('type')), m.group('location'), m.group('isolation_number'), m.group('year')))}
 
-    def nimr_20090914(self, raw_name, m):
+    def nimr_20090914(self, raw_name, m, **_):
         return {'name': m.group('name').upper()}
 
-    def gisaid(self, raw_name, m, with_date=True):
-        # module_logger.info('gisaid with_date:{} {} --> {}'.format(with_date, raw_name, m.groups()))
+    mReCdcId = re.compile(r'^\s*(?P<cdcid>\d{8,10})(?:_\d{6}_v\d_\d|_\d|\s+.*)?$')
+
+    def gisaid(self, raw_name, m, with_date=True, lab=None, **_):
+        # module_logger.debug('gisaid with_date:{} {} --> {}'.format(with_date, raw_name, m.groupdict()))
         year = (with_date and (m.group('year1') or m.group('year2') or m.group('year3'))) or None
         try:
             lab = self._fix_gisaid_lab(m.group('lab'))
         except IndexError:
-            lab = None
+            pass
+        lab_id = m.group('lab_id')
+        # module_logger.debug('{} lab_id {} {}'.format(lab, lab_id, self.mReCdcId.match(lab_id)))
+        if lab == "CDC" and lab_id is not None:
+            m_cdcid = self.mReCdcId.match(lab_id)
+            if m_cdcid:
+                lab_id = m_cdcid.group("cdcid")
+            else:
+                module_logger.warning('Not cdcid: {}'.format(lab_id))
+                lab_id = None
         return {k: v for k, v in (('name', m.group('name')),
                                   ('date', year and '-'.join((year, m.group('month1') or m.group('month2') or '01', m.group('day1') or '01'))),
                                   ('passage', m.group('passage')),
-                                  ('lab_id', m.group('lab_id')),
+                                  ('lab_id', lab_id),
                                   ('lab', lab),
                                   ) if v is not None}
 
@@ -145,25 +157,25 @@ class NameParser:
                 .replace("WHO Collaborating Centre for Reference and Research on Influenza", "MELB")
                 )
 
-    def gisaid_without_date(self, raw_name, m):
-        return self.gisaid(raw_name=raw_name, m=m, with_date=False)
+    def gisaid_without_date(self, raw_name, m, **kw):
+        return self.gisaid(raw_name=raw_name, m=m, with_date=False, **kw)
 
-    def gisaid_melb(self, raw_name, m):
+    def gisaid_melb(self, raw_name, m, **_):
         return {'name': m.group('name'), 'gene': m.group('gene')}
 
-    def melb_20100823(self, raw_name, m):
+    def melb_20100823(self, raw_name, m, **_):
         return {'name': m.group('name').upper(), 'date': m.group('date'), 'passage': m.group('passage')}
 
-    def melb_20110921(self, raw_name, m):
+    def melb_20110921(self, raw_name, m, **_):
         return {'name': m.group('name').upper()}
 
-    def name_only(self, raw_name, m):
+    def name_only(self, raw_name, m, **_):
         return {'name': m.group('name').upper()}
 
-    def cdc_20100913(self, raw_name, m):
+    def cdc_20100913(self, raw_name, m, **_):
         return {'name': m.group('name').upper(), 'passage': m.group('passage')}
 
-    def name_passage(self, raw_name, m):
+    def name_passage(self, raw_name, m, **_):
         return {'name': m.group('name').upper(), 'passage': m.group('passage')}
 
 # ----------------------------------------------------------------------
