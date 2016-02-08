@@ -95,12 +95,21 @@ ALIGNMENT_RAW_DATA = [
     ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,   "signalpeptide", "HA"),
     ("MKVKLLVLLCTFSATYA", "A(H1N1)", "seas", "signalpeptide", "HA"),
     ("MKAILVVLLYTFATANA", "A(H1N1)", "pdm",  "signalpeptide", "HA"),
+    ("DTLCIGYHA",         "A(H1N1)", None,   0,               "HA"),
+    ("DTICIGYHANN",       "A(H1N1)", None,   0,               "HA"),
+    ("DTICMGYHANN",       "A(H1N1)", None,   0,               "HA"),
+    ("GYHANNSTDTV",       "A(H1N1)", None,   5,               "HA"),
+    ("GYHANNSADTV",       "A(H1N1)", None,   5,               "HA"),
+    # ("HANNSTDT",          "A(H1N1)", None,   7,               "HA"),
+
+    ("MNPNQKIITIGSVCMTI", "A(H1N1)", "pdm",  0,               "NA"), # http://sbkb.org/
+    ("MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL", "A(H1N1)", None,  0, "M1"), # http://sbkb.org/
 
     ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide", "HA"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
     ("MVVTSNA",         "B", None, "signalpeptide", "HA"),
 ]
 
-MINIMUM_SEQUENCE_AA_LENGTH = 200          # actually H3 3C3b clade requires 261Q
+MINIMUM_SEQUENCE_AA_LENGTH = 100          # actually H3 3C3b clade requires 261Q
 
 class Aligner:
 
@@ -113,7 +122,7 @@ class Aligner:
                 raise ValueError("match_sequence duplicate: {}".format(match_sequence))
             if shift_data == "signalpeptide":
                 shift = - len(match_sequence)
-            elif isinstance(shift_data, int) and shift_data > 0:   # infix
+            elif isinstance(shift_data, int) and shift_data >= 0:   # prefix or infix
                 shift = shift_data
             else:
                 raise ValueError("Unrecognized shift data {!r} for {!r}".format(shift_data, match_sequence))

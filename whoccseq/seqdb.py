@@ -45,6 +45,21 @@ class SeqDB:
 
         # --------------------------------------------------
 
+    def get(self, entry, amino_acid, aligned):
+        if amino_acid:
+            s = entry["aa"]
+            if aligned:
+                shift = entry.get("shift", 0)
+                if shift < 0:
+                    s = s[-shift:]
+                elif shift > 0:
+                    s = ("X" * shift) + s
+        else:
+            s = entry["nuc"]
+        return s
+
+        # --------------------------------------------------
+
     def load(self):
         if os.path.isfile(self.path_to_db):
             module_logger.info('Reading {}'.format(os.path.realpath(self.path_to_db)))
@@ -249,7 +264,7 @@ class SeqDB:
             else:
                 db_entry["gene"] = aligment_data["gene"]
             entry_passage["shift"] = aligment_data["shift"]
-        elif db_entry["virus_type"] == "A(H3N2)":
+        elif db_entry["virus_type"] in ["A(H3N2)", "A(H1N1)"]:
             module_logger.warning('Not aligned {} len:{} {}'.format(data["name"], len(sequence), sequence))
 
         # --------------------------------------------------
