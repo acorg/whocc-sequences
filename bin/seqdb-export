@@ -40,7 +40,7 @@ def export(data, names, args):
                 else:
                     lab_id = ""
                 name_to_write = re.sub(r"\s+", " ", args.name_format.format(name=name, passage=next(iter(e2["passages"]), ""), date=date, lab_id=lab_id, lab=lab, gene=e2.get("gene", "")))
-                f.write(fasta_m.generate_one(name=name_to_write, sequence=e2["sequence"], encode=args.name_encode).encode("utf-8"))
+                f.write(fasta_m.generate_one(name=name_to_write, sequence=e2["nuc"], encode=args.name_encode).encode("utf-8"))
 
 # ----------------------------------------------------------------------
 

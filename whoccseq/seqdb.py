@@ -20,7 +20,7 @@ from . import open_file, acmacs
 
 # ----------------------------------------------------------------------
 
-# self.names is dict {<name>: {"data": [{"passages": [<passage>], "sequence": <sequence>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
+# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence>, "aa": <sequence>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
 
 class SeqDB:
 
@@ -151,7 +151,7 @@ class SeqDB:
         r = None
         data_passage = data.get("passage", "")
         for e_no, e in enumerate(entry["data"]):
-            sequence_match = self._sequences_match(master=e["sequence"], s=data["sequence"])
+            sequence_match = self._sequences_match(master=e["nuc"], s=data["sequence"])
             if sequence_match:
                 if data_passage and data_passage not in e["passages"]:
                     # if e["passages"]:
@@ -184,7 +184,7 @@ class SeqDB:
         if data.get("gene") and not entry_passage.get("gene"):
             entry_passage["gene"] = data["gene"]
         if sequence_match in ["super", "new"]:   # update sequences with the longer one
-            entry_passage["sequence"] = data["sequence"]
+            entry_passage["nuc"] = data["sequence"]
 
     def _update_cdcid(self, data):
         if data["lab"] == "CDC" and data.get("lab_id"):
