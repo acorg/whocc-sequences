@@ -55,10 +55,17 @@ def align_to_start(sequences, subtype=None):
 
 # ----------------------------------------------------------------------
 
+class SequenceIsTooShort (Exception): pass
+
+# ----------------------------------------------------------------------
+
 def align(sequence_aa):
     """Returns dict: {"subtype": <detected-flu-subtype>, "lineage": <B, H1 lineage>, "gene": <detected gene>, "shift": <alignment shift>}
-    Raises:
+    Raises: SequenceIsTooShort
     """
+    global MINIMUM_SEQUENCE_AA_LENGTH
+    if len(sequence_aa) < MINIMUM_SEQUENCE_AA_LENGTH:
+        raise SequenceIsTooShort()
     ali = aligner()
     r = ali.match(sequence_aa)
     return r
@@ -81,6 +88,8 @@ ALIGNMENT_RAW_DATA = [
     ("MKTIIVLSCFFCLAFS",  "A(H3N2)", None, "signalpeptide", "HA"),
     ("MKTLIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
     ("MKTTTILILLTHWVHS",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("ATLCLGHHAV",        "A(H3N2)", None, 10,              "HA"),
+    ("TNATELVQ",          "A(H3N2)", None, 36,              "HA"),
 
     ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,   "signalpeptide", "HA"),
     ("MKVKLLVLLCTFSATYA", "A(H1N1)", "seas", "signalpeptide", "HA"),
@@ -89,6 +98,8 @@ ALIGNMENT_RAW_DATA = [
     ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide", "HA"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
     ("MVVTSNA",         "B", None, "signalpeptide", "HA"),
 ]
+
+MINIMUM_SEQUENCE_AA_LENGTH = 200          # actually H3 3C3b clade requires 261Q
 
 class Aligner:
 
@@ -101,6 +112,8 @@ class Aligner:
                 raise ValueError("match_sequence duplicate: {}".format(match_sequence))
             if shift_data == "signalpeptide":
                 shift = - len(match_sequence)
+            elif isinstance(shift_data, int) and shift_data > 0:   # infix
+                shift = shift_data
             else:
                 raise ValueError("Unrecognized shift data {!r} for {!r}".format(shift_data, match_sequence))
             self.data[match_sequence] = {"virus_type": virus_type, "shift": shift, "gene": gene}

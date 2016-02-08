@@ -25,7 +25,8 @@ def main(args):
     # read_all_files_update_db(db, files)
     read_file_one_by_one_update_db(db, files)
     db.report()
-    db.save()
+    if args.save:
+        db.save()
 
 # ----------------------------------------------------------------------
 
@@ -88,6 +89,7 @@ try:
     parser.add_argument('input', nargs="*", help='Fasta files to process.')
     parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
+    parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
     # parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
     parser.add_argument('--acmacs', action='store', dest='acmacs_url', default='https://localhost:1168', help='AcmacsWeb server host and port, e.g. https://localhost:1168.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')

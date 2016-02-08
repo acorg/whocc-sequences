@@ -21,6 +21,10 @@ from .utility import timeit
 
 # ----------------------------------------------------------------------
 
+class Exclude (Exception): pass
+
+# ----------------------------------------------------------------------
+
 # self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence-nucleotides>, "aa": <sequence-amino-acids>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
 
 class SeqDB:
@@ -154,16 +158,19 @@ class SeqDB:
             entry["dates"].append(data["date"])
             entry["dates"].sort()
         sameseq = self._look_for_the_same_sequence(entry, data)
-        if sameseq is None:
-            new_entry = {"labs": {}, "passages": []}
-            self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new", db_entry=entry)
-            entry["data"].append(new_entry)
-        elif sameseq["type"] == "update":
-            self._update_entry_passage(entry_passage=entry["data"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"], db_entry=entry)
-        elif sameseq["type"] == "different-genes":
-            module_logger.warning(sameseq["message"])
-        else:
-            module_logger.error("[INTERNAL] Unrecoginzed sameseq: {}".format(sameseq))
+        try:
+            if sameseq is None:
+                new_entry = {"labs": {}, "passages": []}
+                self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new", db_entry=entry)
+                entry["data"].append(new_entry)
+            elif sameseq["type"] == "update":
+                self._update_entry_passage(entry_passage=entry["data"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"], db_entry=entry)
+            elif sameseq["type"] == "different-genes":
+                module_logger.warning(sameseq["message"])
+            else:
+                module_logger.error("[INTERNAL] Unrecoginzed sameseq: {}".format(sameseq))
+        except Exclude as err:
+            module_logger.info('Sequence excluded ({}): {}'.format(err, data["name"]))
 
     def _look_for_the_same_sequence(self, entry, data):
         """If no matching sequence found returns None. Else updates
@@ -206,9 +213,10 @@ class SeqDB:
         if data.get("gene") and not entry_passage.get("gene"):
             entry_passage["gene"] = data["gene"]
         if sequence_match in ["super", "new"]:   # update sequences with the longer one
+            aa = amino_acids.translate_sequence_to_amino_acid(data["sequence"])
+            self._align(aa, entry_passage, data, db_entry)   # may raise
             entry_passage["nuc"] = data["sequence"]
-            entry_passage["aa"] = amino_acids.translate_sequence_to_amino_acid(entry_passage["nuc"])
-            self._align(entry_passage, data, db_entry)
+            entry_passage["aa"] = aa
 
     def _update_cdcid(self, data):
         if data["lab"] == "CDC" and data.get("lab_id"):
@@ -221,8 +229,11 @@ class SeqDB:
             else:
                 module_logger.warning('[CDCID] too short (ignored) {!r} {!r}'.format(data["lab_id"], data["name"]))
 
-    def _align(self, entry_passage, data, db_entry):
-        aligment_data = amino_acids.align(entry_passage["aa"])
+    def _align(self, sequence, entry_passage, data, db_entry):
+        try:
+            aligment_data = amino_acids.align(sequence)
+        except amino_acids.SequenceIsTooShort:
+            raise Exclude("sequence is too short")
         if aligment_data:
             if aligment_data["virus_type"] != db_entry["virus_type"]:
                 module_logger.warning('Virus type detection mismatch {} vs. {}'.format(aligment_data, data))
@@ -238,6 +249,8 @@ class SeqDB:
             else:
                 db_entry["gene"] = aligment_data["gene"]
             entry_passage["shift"] = aligment_data["shift"]
+        elif db_entry["virus_type"] == "A(H3N2)":
+            module_logger.warning('Not aligned {} len:{} {}'.format(data["name"], len(sequence), sequence))
 
         # --------------------------------------------------
 
