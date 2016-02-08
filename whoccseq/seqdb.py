@@ -132,9 +132,9 @@ class SeqDB:
                     not_aligned[e1["virus_type"]] += 1
         aligned[" All"] = sum(aligned.values())
         not_aligned[" All"] = sum(not_aligned.values())
-        total = {k: (aligned[k] + not_aligned[k]) for k in aligned}
+        total = {k: (aligned[k] + not_aligned.get(k, 0)) for k in aligned}
         ks = sorted(aligned)
-        print("Aligned:\n  {}\nNot aligned\n  {}".format("\n  ".join("{:<7s} {:d} {:.1f}".format(k, aligned[k], (aligned[k] / total[k]) * 100.0) for k in ks), "\n  ".join("{:<7s} {}".format(k, not_aligned[k]) for k in ks)))
+        print("Aligned:\n  {}\nNot aligned\n  {}".format("\n  ".join("{:<7s} {:d} {:.1f}%".format(k, aligned[k], (aligned[k] / total[k]) * 100.0) for k in ks), "\n  ".join("{:<7s} {}".format(k, not_aligned.get(k, 0)) for k in ks)))
 
         # --------------------------------------------------
 
@@ -232,8 +232,8 @@ class SeqDB:
     def _align(self, sequence, entry_passage, data, db_entry):
         try:
             aligment_data = amino_acids.align(sequence)
-        except amino_acids.SequenceIsTooShort:
-            raise Exclude("sequence is too short")
+        except amino_acids.SequenceIsTooShort as err:
+            raise Exclude(str(err))
         if aligment_data:
             if aligment_data["virus_type"] != db_entry["virus_type"]:
                 module_logger.warning('Virus type detection mismatch {} vs. {}'.format(aligment_data, data))

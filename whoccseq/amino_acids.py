@@ -65,7 +65,7 @@ def align(sequence_aa):
     """
     global MINIMUM_SEQUENCE_AA_LENGTH
     if len(sequence_aa) < MINIMUM_SEQUENCE_AA_LENGTH:
-        raise SequenceIsTooShort()
+        raise SequenceIsTooShort("sequence is too short: {}".format(len(sequence_aa)))
     ali = aligner()
     r = ali.match(sequence_aa)
     return r
@@ -90,6 +90,7 @@ ALIGNMENT_RAW_DATA = [
     ("MKTTTILILLTHWVHS",  "A(H3N2)", None, "signalpeptide", "HA"),
     ("ATLCLGHHAV",        "A(H3N2)", None, 10,              "HA"),
     ("TNATELVQ",          "A(H3N2)", None, 36,              "HA"),
+    ("VERSKAYSN",         "A(H3N2)", None, 87,              "HA"),
 
     ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,   "signalpeptide", "HA"),
     ("MKVKLLVLLCTFSATYA", "A(H1N1)", "seas", "signalpeptide", "HA"),

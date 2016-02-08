@@ -180,8 +180,8 @@ class NameParser:
 
 # ----------------------------------------------------------------------
 
-def generate_one(name, sequence, encode):
-    return ">{}\n{}".format(encode_name(name) if encode else name, sequence_split(sequence))
+def generate_one(name, sequence, encode, split=True):
+    return ">{}\n{}\n".format((encode_name(name) if encode else name).strip(), (sequence_split(sequence) if split else sequence).strip())
 
 # ----------------------------------------------------------------------
 
@@ -192,13 +192,11 @@ def encode_name(name):
 
 # ----------------------------------------------------------------------
 
-def sequence_split(sequence, chunk_len=75, separator="\n", end="\n"):
+def sequence_split(sequence, chunk_len=75, separator="\n"):
     if chunk_len and chunk_len > 0:
         r = separator.join(sequence[i:i+chunk_len] for i in range(0, len(sequence), chunk_len))
     else:
         r = sequence
-    if end and r[-1] != end:
-        r += end
     return r
 
 # ----------------------------------------------------------------------

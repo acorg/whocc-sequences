@@ -29,6 +29,10 @@ def main(args):
 
 def export(data, names, args):
     module_logger.info('Writing {}'.format(args.output))
+    if args.amino_acids:
+        seq_key = "aa"
+    else:
+        seq_key = "nuc"
     with open_file.open_for_writing_binary(args.output) as f:
         for name in names:
             e1  = data[name]
@@ -40,7 +44,7 @@ def export(data, names, args):
                 else:
                     lab_id = ""
                 name_to_write = re.sub(r"\s+", " ", args.name_format.format(name=name, passage=next(iter(e2["passages"]), ""), date=date, lab_id=lab_id, lab=lab, gene=e2.get("gene", "")))
-                f.write(fasta_m.generate_one(name=name_to_write, sequence=e2["nuc"], encode=args.name_encode).encode("utf-8"))
+                f.write(fasta_m.generate_one(name=name_to_write, sequence=e2[seq_key], encode=args.name_encode, split=args.sequence_wrap).encode("utf-8"))
 
 # ----------------------------------------------------------------------
 
@@ -67,6 +71,8 @@ try:
     parser.add_argument('-f', '--format', action='store', dest='output_format', default='fasta', help='Output format: fasta')
     parser.add_argument('--name-format', action='store', dest='name_format', default='{name} {passage}', help='Name format, possible fields: {name} {date} {lab_id} {passage} {lab} {gene}')
     parser.add_argument('--name-encode', action='store_true', dest='name_encode', default=False, help='Encode spaces and parentheses in names')
+    parser.add_argument('--amino-acids', action='store_true', dest='amino_acids', default=False, help='Export amino-acids instead of nucleotites')
+    parser.add_argument('--no-wrap', action='store_false', dest='sequence_wrap', default=True, help='Do not wrap sequence and generate long lines')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
