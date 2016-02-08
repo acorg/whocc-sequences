@@ -8,7 +8,8 @@ Class to access sequence database
 
 import os, sys, json
 import logging; module_logger = logging.getLogger(__name__)
-from . import open_file, acmacs
+from . import open_file, acmacs, amino_acids
+from .utility import timeit
 
 # TODO
 # export fasta with encoded names
@@ -20,7 +21,7 @@ from . import open_file, acmacs
 
 # ----------------------------------------------------------------------
 
-# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence>, "aa": <sequence>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
+# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence-nucleotides>, "aa": <sequence-amino-acids>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
 
 class SeqDB:
 
@@ -54,7 +55,8 @@ class SeqDB:
     def save(self):
         data = {"  version": "sequence-database-v1", "1-names": self.names, "2-cdcids": self.cdcids}
         module_logger.info('Writing {}'.format(self.path_to_db))
-        open_file.write_json(self.path_to_db, data, indent=1, sort_keys=True)
+        with timeit("Written in"):
+            open_file.write_json(self.path_to_db, data, indent=1, sort_keys=True)
 
         # --------------------------------------------------
 
@@ -110,6 +112,20 @@ class SeqDB:
             # print("Multiple sequences per passage {}:\n\t{}".format(len(multi_seq_per_passage), "\n\t".join("{!r} {!r}".format(n, p) for n, p in multi_seq_per_passage)))
             print("Multiple sequences per passage {}".format(len(multi_seq_per_passage)))
 
+        not_translated_to_aa = [ee[0] for ee in ((n, all(bool(e2.get("aa")) for e2 in e["data"])) for n, e in self.names.items()) if not ee[1]]
+        if not_translated_to_aa:
+            print("Not translated to amino-acids {}".format(len(not_translated_to_aa)))
+
+        aligned = 0
+        not_aligned = 0
+        for n, e1 in self.names.items():
+            for e2 in e1["data"]:
+                if e2.get("shift") is not None:
+                    aligned += 1
+                else:
+                    not_aligned += 1
+        print("Aligned: {} ({:.1f}%)   Not aligned: {}".format(aligned, (aligned / (aligned + not_aligned)) * 100.0, not_aligned))
+
         # --------------------------------------------------
 
     def _add_sequence(self, data):
@@ -134,10 +150,10 @@ class SeqDB:
         sameseq = self._look_for_the_same_sequence(entry, data)
         if sameseq is None:
             new_entry = {"labs": {}, "passages": []}
-            self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new")
+            self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new", db_entry=entry)
             entry["data"].append(new_entry)
         elif sameseq["type"] == "update":
-            self._update_entry_passage(entry_passage=entry["data"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"])
+            self._update_entry_passage(entry_passage=entry["data"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"], db_entry=entry)
         elif sameseq["type"] == "different-genes":
             module_logger.warning(sameseq["message"])
         else:
@@ -175,7 +191,7 @@ class SeqDB:
             r = None
         return r
 
-    def _update_entry_passage(self, entry_passage, data, sequence_match):
+    def _update_entry_passage(self, entry_passage, data, sequence_match, db_entry):
         if data.get("passage") and data["passage"] not in entry_passage["passages"]:
             entry_passage["passages"].append(data["passage"])
         lab_e = entry_passage["labs"].setdefault(data["lab"], [])
@@ -185,6 +201,8 @@ class SeqDB:
             entry_passage["gene"] = data["gene"]
         if sequence_match in ["super", "new"]:   # update sequences with the longer one
             entry_passage["nuc"] = data["sequence"]
+            entry_passage["aa"] = amino_acids.translate_sequence_to_amino_acid(entry_passage["nuc"])
+            self._align(entry_passage, data, db_entry)
 
     def _update_cdcid(self, data):
         if data["lab"] == "CDC" and data.get("lab_id"):
@@ -196,6 +214,19 @@ class SeqDB:
                     module_logger.warning('[CDCID] {!r} for another name: {!r} existing: {!r}'.format(data["lab_id"], data["name"], existing))
             else:
                 module_logger.warning('[CDCID] too short (ignored) {!r} {!r}'.format(data["lab_id"], data["name"]))
+
+    def _align(self, entry_passage, data, db_entry):
+        aligment_data = amino_acids.align(entry_passage["aa"])
+        if aligment_data:
+            if aligment_data["virus_type"] != db_entry["virus_type"]:
+                module_logger.warning('Virus type detection mismatch {} vs. {}'.format(aligment_data, data))
+            if aligment_data.get("lineage"):
+                if db_entry.get("lineage"):
+                    if db_entry["lineage"] != aligment_data["lineage"]:
+                        module_logger.warning('Lineage detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, db_entry["lineage"]))
+                else:
+                    db_entry["lineage"] = aligment_data["lineage"]
+            entry_passage["shift"] = aligment_data["shift"]
 
         # --------------------------------------------------
 
