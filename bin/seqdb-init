@@ -5,7 +5,7 @@
 Initialize seqdb with old WHO CC sequence data.
 """
 
-import sys, os, glob, re, json, traceback, pprint
+import sys, os, traceback
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
@@ -76,6 +76,7 @@ def normalize_virus_type(vt, fn):
 # ----------------------------------------------------------------------
 
 def collect_files(source_dir):
+    import glob
     r = [make_file_entry(fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2"))]
     r.sort(key=lambda e: e["date"])
     module_logger.debug('{} fasta files found for {} {}'.format(len(r), sorted(set(e["lab"] for e in r)), sorted(set(e["virus_type"] for e in r))))

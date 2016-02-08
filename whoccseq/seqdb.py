@@ -47,16 +47,19 @@ class SeqDB:
 
     def get(self, entry, amino_acid, aligned):
         if amino_acid:
-            s = entry["aa"]
             if aligned:
-                shift = entry.get("shift", 0)
-                if shift < 0:
-                    s = s[-shift:]
-                elif shift > 0:
-                    s = ("X" * shift) + s
+                s = self._aligned(entry)
+            else:
+                s = entry["aa"]
         else:
             s = entry["nuc"]
         return s
+
+    def get_aa(self, source=None, aligned=True):
+        """Returns list of aa sequences from source"""
+        if source is None:
+            source = self.all()
+        return [self._aligned(e2) if aligned else e2["aa"] for n, e1 in source.items() for e2 in e1["data"]]
 
         # --------------------------------------------------
 
@@ -101,8 +104,34 @@ class SeqDB:
                     r = None
                 return r
             data = {n: e for n, e in ((nn, filter_lab(ee)) for nn, ee in source.items()) if e}
+        elif field == "gene":
+            def filter_gene(entry):
+                data = [e for e in entry["data"] if e.get("gene", "HA") == value]
+                if data:
+                    r = {f: v for f,v in entry.items() if f != "data"}
+                    r["data"] = data
+                else:
+                    r = None
+                return r
+            data = {n: e for n, e in ((nn, filter_gene(ee)) for nn, ee in source.items()) if e}
         else:
             raise ValueError("Unsupported field {!r} to select by".format(field))
+        return data
+
+    def select_aligned(self, source=None):
+
+        def filter_aligned(entry):
+            data = [e for e in entry["data"] if e.get("shift") is not None]
+            if data:
+                r = {f: v for f,v in entry.items() if f != "data"}
+                r["data"] = data
+            else:
+                r = None
+            return r
+
+        if source is None:
+            source = self.all()
+        data = {n: e for n, e in ((nn, filter_aligned(ee)) for nn, ee in source.items()) if e}
         return data
 
     def names_sorted_by(self, field, source=None):
@@ -266,6 +295,17 @@ class SeqDB:
             entry_passage["shift"] = aligment_data["shift"]
         elif db_entry["virus_type"] in ["A(H3N2)", "A(H1N1)"]:
             module_logger.warning('Not aligned {} len:{} {}'.format(data["name"], len(sequence), sequence))
+
+    def _aligned(self, entry):
+        s = entry["aa"]
+        shift = entry.get("shift")
+        if shift is None:
+            raise RuntimeError("Not aligned")
+        if shift < 0:
+            s = s[-shift:]
+        elif shift > 0:
+            s = ("X" * shift) + s
+        return s
 
         # --------------------------------------------------
 
