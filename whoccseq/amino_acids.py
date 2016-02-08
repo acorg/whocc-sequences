@@ -66,29 +66,28 @@ def align(sequence_aa):
 # ----------------------------------------------------------------------
 
 # http://signalpeptide.com/
-# http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
 ALIGNMENT_RAW_DATA = [
-    ("MKTIIALCYILCLVFA",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSHIFCLVLG",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYIFCLAFA",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYIFCLAFG",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYIFCLALG",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYIFCLVFA",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYIFCQVFA",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYIFCQVLA",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYILCLVFA",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIALSYISCLVFA",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTIIVLSCFFCLAFS",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTLIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide"),
-    ("MKTTTILILLTHWVHS",  "A(H3N2)", None, "signalpeptide"),
+    ("MKTIIALCYILCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSHIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYIFCLAFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYIFCLAFG",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYIFCLALG",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYIFCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYIFCQVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYIFCQVLA",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYILCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIALSYISCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTIIVLSCFFCLAFS",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTLIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
+    ("MKTTTILILLTHWVHS",  "A(H3N2)", None, "signalpeptide", "HA"),
 
-    ("MKVKLLVLLCTFTATYA", "A(H1N1)", None, "signalpeptide"),
-    ("MKVKLLVLLCTFSATYA", "A(H1N1)", "seas", "signalpeptide"),
-    ("MKAILVVLLYTFATANA", "A(H1N1)", "pdm", "signalpeptide"),
+    ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,   "signalpeptide", "HA"),
+    ("MKVKLLVLLCTFSATYA", "A(H1N1)", "seas", "signalpeptide", "HA"),
+    ("MKAILVVLLYTFATANA", "A(H1N1)", "pdm",  "signalpeptide", "HA"),
 
-    ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
-    ("MVVTSNA",         "B", None, "signalpeptide"),
+    ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide", "HA"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
+    ("MVVTSNA",         "B", None, "signalpeptide", "HA"),
 ]
 
 class Aligner:
@@ -97,14 +96,14 @@ class Aligner:
         global ALIGNMENT_RAW_DATA
         self.data = {}          # sequence-to-match -> {"virus_type":, "lineage":, "shift":}
         # check for duplicates
-        for match_sequence, virus_type, lineage, shift_data in ALIGNMENT_RAW_DATA:
+        for match_sequence, virus_type, lineage, shift_data, gene  in ALIGNMENT_RAW_DATA:
             if match_sequence in self.data:
                 raise ValueError("match_sequence duplicate: {}".format(match_sequence))
             if shift_data == "signalpeptide":
                 shift = - len(match_sequence)
             else:
                 raise ValueError("Unrecognized shift data {!r} for {!r}".format(shift_data, match_sequence))
-            self.data[match_sequence] = {"virus_type": virus_type, "shift": shift}
+            self.data[match_sequence] = {"virus_type": virus_type, "shift": shift, "gene": gene}
             if lineage:
                 self.data[match_sequence]["lineage"] = lineage
 

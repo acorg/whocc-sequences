@@ -116,15 +116,21 @@ class SeqDB:
         if not_translated_to_aa:
             print("Not translated to amino-acids {}".format(len(not_translated_to_aa)))
 
-        aligned = 0
-        not_aligned = 0
+        aligned = {}                      # by virus_type
+        not_aligned = {}
         for n, e1 in self.names.items():
             for e2 in e1["data"]:
                 if e2.get("shift") is not None:
-                    aligned += 1
+                    aligned.setdefault(e1["virus_type"], 0)
+                    aligned[e1["virus_type"]] += 1
                 else:
-                    not_aligned += 1
-        print("Aligned: {} ({:.1f}%)   Not aligned: {}".format(aligned, (aligned / (aligned + not_aligned)) * 100.0, not_aligned))
+                    not_aligned.setdefault(e1["virus_type"], 0)
+                    not_aligned[e1["virus_type"]] += 1
+        aligned[" All"] = sum(aligned.values())
+        not_aligned[" All"] = sum(not_aligned.values())
+        total = {k: (aligned[k] + not_aligned[k]) for k in aligned}
+        ks = sorted(aligned)
+        print("Aligned:\n  {}\nNot aligned\n  {}".format("\n  ".join("{:<7s} {:d} {:.1f}".format(k, aligned[k], (aligned[k] / total[k]) * 100.0) for k in ks), "\n  ".join("{:<7s} {}".format(k, not_aligned[k]) for k in ks)))
 
         # --------------------------------------------------
 
@@ -226,6 +232,11 @@ class SeqDB:
                         module_logger.warning('Lineage detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, db_entry["lineage"]))
                 else:
                     db_entry["lineage"] = aligment_data["lineage"]
+            if db_entry.get("gene"):
+                if db_entry["gene"] != aligment_data["gene"]:
+                    module_logger.warning('Gene detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, db_entry["gene"]))
+            else:
+                db_entry["gene"] = aligment_data["gene"]
             entry_passage["shift"] = aligment_data["shift"]
 
         # --------------------------------------------------
