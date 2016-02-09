@@ -46,7 +46,81 @@ def match(db, hi):
                     if hi_entry:
                         break
             if hi_entry:
-                print(name, lab, list(hi_entry["passage_table_name"]), "----", [e2["passages"] for e2 in e2l])
+                matches = match_passages(set().union(*(set(e2["passages"]) for e2 in e2l)) or [""], list(hi_entry["passage_table_name"]))
+                # print(name, lab, list(hi_entry["passage_table_name"]), "----", [e2["passages"] for e2 in e2l])
+
+# ----------------------------------------------------------------------
+
+sRePassageGroup = r"(?:(?P<p{}>[A-Z]+[\d\?]+)/?)?"
+sRePassageDate = r"(?:\s*\((?P<date>\d+-\d+-\d+)\))?"
+sRePassage = re.compile("".join(sRePassageGroup.format(i) for i in range(10)) + sRePassageDate)
+#sRePassage = re.compile(r"^(?P<p1>[A-Z]+[\d\?]+/?)+(?:\s*\((?P<date>\d+-\d+\d+)\))?$")
+#re.match(r"^([A-Z]+[\d\?]+)/?(?:([A-Z]+[\d\?]+)/?)?(?:([A-Z]+[\d\?]+)/?)?$", "E4/E3/E2").groups()
+
+def match_passages(seq_passages, hi_passages):
+
+    def level(sp, hp):
+        if not sp:
+            level = 90
+        elif not hp:
+            level = 91
+        else:
+            sm = sRePassage.match(sp)
+            hm = sRePassage.match(hp)
+            if not sm or not hm:
+                module_logger.warning('Cannot parse passage {!r} {!r}'.format(sp, hp))
+                level = 101
+            else:
+                spp = [sm.group(k) for k in sorted(sm.groupdict()) if k != "date" and sm.group(k)]
+                hpp = [hm.group(k) for k in sorted(hm.groupdict()) if k != "date" and hm.group(k)]
+                if spp == hpp:
+                    # matches without date
+                    if sm.group("date") and hm.group("date"):
+                        level = 11        # different dates
+                    else:
+                        level = 10        # one of the dates missing
+                elif spp and hpp and spp[-1] == hpp[-1]:
+                    level = 20
+                    for i in range(2, min(len(spp), len(hpp)) + 1):
+                        if spp[-i] == hpp[-i]:
+                            level -= 1
+                        else:
+                            break
+                else:
+                    # module_logger.warning('{} {} {} --- {} {} {}'.format(sp, spp, sm.group("date"), hp, hpp, hm.group("date")))
+                    level = 100
+        return level
+
+    if not seq_passages:
+        if "" in hi_passages:
+            r = ["", ""]
+        else:
+            r = ["", hi_passages[0]]      # nothing to compare, just take the first
+    elif len(seq_passages) == 1 and len(hi_passages) == 1:
+        r = [(list(seq_passages or [""])[0], hi_passages[0])]
+    else:
+        sp_done = []
+        hp_done = []
+
+        def make(sp, hp):
+            sp_done.append(sp)
+            hp_done.append(hp)
+            return (sp, hp)
+
+        r = [make(sp, hp) for sp in (seq_passages or [""]) for hp in hi_passages if sp and hp and sp == hp]
+        if len(sp_done) < len(seq_passages) and len(hp_done) < len(hi_passages):
+            sp_level_hp = {}
+            for sp in seq_passages:
+                for hp in hi_passages:
+                    if sp not in sp_done and hp not in hp_done:
+                        l = level(sp, hp)
+                        sp_level_hp.setdefault(sp, {}).setdefault(l, []).append(hp)
+            ambiguous = any(len(lv) > 1 for spv in sp_level_hp.values() for lv in spv.values())
+            if ambiguous:
+                print("A", sp_level_hp)
+            else:
+                print("_", sp_level_hp)
+    return r
 
 # ----------------------------------------------------------------------
 
