@@ -1,0 +1,113 @@
+#! /usr/bin/env python3
+# -*- Python -*-
+
+"""
+Updates seqdb with matching HI names
+"""
+
+import sys, os, re, traceback, pprint
+if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
+sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
+import logging; module_logger = logging.getLogger(__name__)
+
+from whoccseq import seqdb
+from whoccseq import fasta as fasta_m, open_file
+
+# ----------------------------------------------------------------------
+
+def main(args):
+    db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+    if args.reset:
+        db.reset_hi_data()
+    hi = HIDB(os.path.expandvars(os.path.expanduser(args.path_to_hidb)))
+    match(db, hi)
+    db.report()
+    if args.save:
+        db.save()
+
+# ----------------------------------------------------------------------
+
+def match(db, hi):
+    for name, e1 in db.names.items():
+        virus_type = e1["virus_type"]
+        lab_to_entries = {}
+        for e2 in e1["data"]:
+            if e2.get("gene", "HA") == "HA":
+                for lab in e2["labs"]:
+                    lab_to_entries.setdefault(lab, []).append(e2)
+        for lab, e2l in lab_to_entries.items():
+            hi_entry = hi.find_antigen_by_name(virus_type, lab, name)
+            if not hi_entry and lab == "CDC":
+                for e2 in e2l:
+                    for cdcid in e2["labs"][lab]:
+                        hi_entry = hi.find_antigen_by_cdcid(virus_type, cdcid)
+                        if hi_entry:
+                            break
+                    if hi_entry:
+                        break
+            if hi_entry:
+                print(name, lab, list(hi_entry["passage_table_name"]), "----", [e2["passages"] for e2 in e2l])
+
+# ----------------------------------------------------------------------
+
+class HIDB:
+
+    def __init__(self, filename):
+        module_logger.info('Reading {}'.format(filename))
+        self.db = open_file.read_json(filename)
+
+    def find_antigen_by_name(self, virus_type, lab, name):
+        r = None
+        for vt in self._virus_types(lab, virus_type):
+            r = self.db[lab][vt]["antigens"]["name"].get(name)
+            if r:
+                break
+        return r
+
+    def find_antigen_by_cdcid(self, virus_type, cdcid):
+        r = None
+        for vt in self._virus_types("CDC", virus_type):
+            n = self.db["CDC"][vt]["antigens"]["lab_id"].get("CDC#{}".format(cdcid))
+            if n:
+                if len(n) > 1:
+                    module_logger.warning('Multiple names for cdcid {} {}: {}'.format(virus_type, cdcid, n))
+                r = self.db["CDC"][vt]["antigens"]["name"].get(n[0])
+                break
+        return r
+
+    def _virus_types(self, lab, virus_type):
+        if virus_type == "A(H1N1)":
+            if "H1SEAS" in self.db[lab]:
+                r = ["H1PDM", "H1SEAS"]
+            else:
+                r = ["H1PDM"]
+        elif virus_type == "A(H3N2)":
+            r = ["H3"]
+        elif virus_type == "B":
+            r = ["B"]
+        else:
+            raise ValueError("Unrecognized virus_type {}".format(virus_type))
+        return r
+
+# ----------------------------------------------------------------------
+
+try:
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
+    parser.add_argument('--reset', action='store_true', dest='reset', default=False, help='Remove previous matching data.')
+    parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--hidb', action='store', dest='path_to_hidb', default='~/WHO/whocc-antigen-names/ALL.json.xz', help='Path to HI name database.')
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
+    exit_code = main(args)
+except Exception as err:
+    logging.error('{}\n{}'.format(err, traceback.format_exc()))
+    exit_code = 1
+exit(exit_code)
+
+# ======================================================================
+### Local Variables:
+### eval: (if (fboundp 'eu-rename-buffer) (eu-rename-buffer))
+### End:

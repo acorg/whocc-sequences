@@ -25,7 +25,7 @@ class Exclude (Exception): pass
 
 # ----------------------------------------------------------------------
 
-# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence-nucleotides>, "aa": <sequence-amino-acids>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
+# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence-nucleotides>, "aa": <sequence-amino-acids>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>, "hi_name":}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
 
 class SeqDB:
 
@@ -178,18 +178,39 @@ class SeqDB:
         not_aligned[" All"] = sum(not_aligned.values())
         total = {k: (aligned[k] + not_aligned.get(k, 0)) for k in aligned}
         ks = sorted(aligned)
-        print("Aligned:\n  {}\nNot aligned\n  {}".format("\n  ".join("{:<7s} {:d} {:.1f}%".format(k, aligned[k], (aligned[k] / total[k]) * 100.0) for k in ks), "\n  ".join("{:<7s} {}".format(k, not_aligned.get(k, 0)) for k in ks)))
+        print("Aligned:\n  {}\nNot aligned\n  {}".format("\n  ".join("{:<7s} {:d} {:.1f}%".format(k.strip(), aligned[k], (aligned[k] / total[k]) * 100.0) for k in ks), "\n  ".join("{:<7s} {}".format(k.strip(), not_aligned.get(k, 0)) for k in ks)))
+
+        ha_sequences = 0
+        hi_names = 0
+        for e1 in self.names.values():
+            for e2 in e1["data"]:
+                if e2.get("gene", "HA") == "HA":
+                    ha_sequences += 1
+                    if e2.get("hi_name"):
+                        hi_names += 1
+        print("HI names: {} ({:.1f}%)".format(hi_names, hi_names / ha_sequences * 100.0))
+
+        # --------------------------------------------------
+
+    def reset_hi_data(self):
+        for e1 in self.names.values():
+            for e2 in e1["data"]:
+                if "hi_name" in e2:
+                    del e2["hi_name"]
 
         # --------------------------------------------------
 
     def _add_sequence(self, data):
-        if data.get("name"):
-            if data["name"][1] in ["/", "("] and data["name"][0] != data["virus_type"][0]:
-                module_logger.warning('Virus type ({}) and name ({}) mismatch'.format(data["virus_type"], data["name"]))
-            entry = self.names.get(data["name"])
+        name = data.get("name")
+        if name:
+            if name[1] in ["/", "("] and name[0] != data["virus_type"][0]:
+                module_logger.warning('Virus type ({}) and name ({}) mismatch'.format(data["virus_type"], name))
+            entry = self.names.get(name)
             if entry is None:
+                if name[:8] not in ["A(H1N1)/", "A(H3N2)/"] and name[:2] != "B/":
+                    module_logger.warning('Suspicious name {!r}'.format(name))
                 entry = {"data": [], "virus_type": data["virus_type"], "dates": []}
-                self.names[data["name"]] = entry
+                self.names[name] = entry
             self._update_db_entry(entry, data)
             self._update_cdcid(data)
         else:
@@ -287,11 +308,11 @@ class SeqDB:
                         module_logger.warning('Lineage detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, db_entry["lineage"]))
                 else:
                     db_entry["lineage"] = aligment_data["lineage"]
-            if db_entry.get("gene"):
-                if db_entry["gene"] != aligment_data["gene"]:
-                    module_logger.warning('Gene detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, db_entry["gene"]))
+            if entry_passage.get("gene"):
+                if entry_passage["gene"] != aligment_data["gene"]:
+                    module_logger.warning('Gene detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, entry_passage["gene"]))
             else:
-                db_entry["gene"] = aligment_data["gene"]
+                entry_passage["gene"] = aligment_data["gene"]
             entry_passage["shift"] = aligment_data["shift"]
         elif db_entry["virus_type"] in ["A(H3N2)", "A(H1N1)"]:
             module_logger.warning('Not aligned {} len:{} {}'.format(data["name"], len(sequence), sequence))
