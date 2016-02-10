@@ -46,81 +46,133 @@ def match(db, hi):
                     if hi_entry:
                         break
             if hi_entry:
-                matches = match_passages(set().union(*(set(e2["passages"]) for e2 in e2l)) or [""], list(hi_entry["passage_table_name"]))
+                # matches = match_passages(set().union(*(set(e2["passages"]) for e2 in e2l)) or [""], list(hi_entry["passage_table_name"]))
+                matches = match_passages(name, [e2["passages"] or [""] for e2 in e2l], list(hi_entry["passage_table_name"]))
                 # print(name, lab, list(hi_entry["passage_table_name"]), "----", [e2["passages"] for e2 in e2l])
 
 # ----------------------------------------------------------------------
 
-sRePassageGroup = r"(?:(?P<p{}>[A-Z]+[\d\?]+)/?)?"
+def match_passages(name, seq_passages, hi_passages):
+    if len(seq_passages) == 1 and len(hi_passages) == 1:
+        # just one possibility, always matches regardless of actual passages
+        r = [[seq_passages[0][0], hi_passages[0]]]
+    else:
+        # print("{:50s} {:60s} {}".format(name, repr(seq_passages), repr(hi_passages)))
+        seq_left = seq_passages[:]
+        hi_left = hi_passages[:]
+        r = []
+        while seq_left and hi_left:
+            levels = sorted(([match_level(seq_p, hi_p), seq_p, hi_p] for seq_group in seq_left for seq_p in seq_group for hi_p in hi_left), key=lambda e: e[0])
+            # print("? {:48s} {:60s} {}".format(name, repr(seq_left), levels), file=sys.stderr)
+            if len(levels) == 1 or levels[0][0] == 0 or levels[0][0] < levels[1][0] or levels[0][0] <= 11:
+                r.append(levels[0][1:])
+                seq_left = [e for e in seq_left if levels[0][1] not in e]
+                hi_left.remove(levels[0][2])
+            else:
+                print("{:50s} {:60s} {}".format(name, repr(seq_left), levels), file=sys.stderr)
+                break
+    return r
+
+# ----------------------------------------------------------------------
+
+sRePassageGroup = r"(?:(?P<p{}>[A-Z]+[\d\?]*)/?)?"
 sRePassageDate = r"(?:\s*\((?P<date>\d+-\d+-\d+)\))?"
 sRePassage = re.compile("".join(sRePassageGroup.format(i) for i in range(10)) + sRePassageDate)
-#sRePassage = re.compile(r"^(?P<p1>[A-Z]+[\d\?]+/?)+(?:\s*\((?P<date>\d+-\d+\d+)\))?$")
-#re.match(r"^([A-Z]+[\d\?]+)/?(?:([A-Z]+[\d\?]+)/?)?(?:([A-Z]+[\d\?]+)/?)?$", "E4/E3/E2").groups()
 
-def match_passages(seq_passages, hi_passages):
-
-    def level(sp, hp):
-        if not sp:
-            level = 90
-        elif not hp:
-            level = 91
+def match_level(sp, hp):
+    if not sp:
+        level = 90
+    elif not hp:
+        level = 91
+    elif sp == hp:
+        level = 0
+    else:
+        sm = sRePassage.match(sp)
+        hm = sRePassage.match(hp)
+        if not sm or not hm:
+            module_logger.warning('Cannot parse passage {!r} {!r}'.format(sp, hp))
+            level = 200
         else:
-            sm = sRePassage.match(sp)
-            hm = sRePassage.match(hp)
-            if not sm or not hm:
-                module_logger.warning('Cannot parse passage {!r} {!r}'.format(sp, hp))
-                level = 101
-            else:
-                spp = [sm.group(k) for k in sorted(sm.groupdict()) if k != "date" and sm.group(k)]
-                hpp = [hm.group(k) for k in sorted(hm.groupdict()) if k != "date" and hm.group(k)]
+            spp = [sm.group(k) for k in sorted(sm.groupdict()) if k != "date" and sm.group(k)]
+            hpp = [hm.group(k) for k in sorted(hm.groupdict()) if k != "date" and hm.group(k)]
+            if spp and hpp:
                 if spp == hpp:
                     # matches without date
                     if sm.group("date") and hm.group("date"):
                         level = 11        # different dates
                     else:
                         level = 10        # one of the dates missing
-                elif spp and hpp and spp[-1] == hpp[-1]:
+                elif spp[-1] == hpp[-1]:
                     level = 20
                     for i in range(2, min(len(spp), len(hpp)) + 1):
                         if spp[-i] == hpp[-i]:
                             level -= 1
                         else:
                             break
+                elif same_passage_type(spp[-1], hpp[-1]):
+                    level = 30
+                    for i in range(2, min(len(spp), len(hpp)) + 1):
+                        if same_passage_type(spp[-i], hpp[-i]):
+                            level -= 1
+                        else:
+                            break
                 else:
                     # module_logger.warning('{} {} {} --- {} {} {}'.format(sp, spp, sm.group("date"), hp, hpp, hm.group("date")))
                     level = 100
-        return level
-
-    if not seq_passages:
-        if "" in hi_passages:
-            r = ["", ""]
-        else:
-            r = ["", hi_passages[0]]      # nothing to compare, just take the first
-    elif len(seq_passages) == 1 and len(hi_passages) == 1:
-        r = [(list(seq_passages or [""])[0], hi_passages[0])]
-    else:
-        sp_done = []
-        hp_done = []
-
-        def make(sp, hp):
-            sp_done.append(sp)
-            hp_done.append(hp)
-            return (sp, hp)
-
-        r = [make(sp, hp) for sp in (seq_passages or [""]) for hp in hi_passages if sp and hp and sp == hp]
-        if len(sp_done) < len(seq_passages) and len(hp_done) < len(hi_passages):
-            sp_level_hp = {}
-            for sp in seq_passages:
-                for hp in hi_passages:
-                    if sp not in sp_done and hp not in hp_done:
-                        l = level(sp, hp)
-                        sp_level_hp.setdefault(sp, {}).setdefault(l, []).append(hp)
-            ambiguous = any(len(lv) > 1 for spv in sp_level_hp.values() for lv in spv.values())
-            if ambiguous:
-                print("A", sp_level_hp)
             else:
-                print("_", sp_level_hp)
-    return r
+                level = 110
+    return level
+
+# ----------------------------------------------------------------------
+
+sReSplitPassageNumber = re.compile(r"^([A-Z]+)")
+
+def same_passage_type(sp, hp):
+    global sReSplitPassageNumber
+    sp_m = sReSplitPassageNumber.match(sp)
+    hp_m = sReSplitPassageNumber.match(hp)
+    return sp_m and hp_m and sp_m.group(1) == hp_m.group(1)
+
+# ----------------------------------------------------------------------
+
+
+    # if not seq_passages:
+    #     if "" in hi_passages:
+    #         r = ["", ""]
+    #     else:
+    #         r = ["", hi_passages[0]]      # nothing to compare, just take the first
+    # elif len(seq_passages) == 1 and len(hi_passages) == 1:
+    #     r = [(list(seq_passages or [""])[0], hi_passages[0])]
+    # else:
+    #     sp_done = []
+    #     hp_done = []
+
+    #     def make(sp, hp):
+    #         sp_done.append(sp)
+    #         hp_done.append(hp)
+    #         return (sp, hp)
+
+    #     r = [make(sp, hp) for sp in (seq_passages or [""]) for hp in hi_passages if sp and hp and sp == hp]
+    #     if len(sp_done) < len(seq_passages) and len(hp_done) < len(hi_passages):
+    #         sp_level_hp = {}
+    #         for sp in seq_passages:
+    #             for hp in hi_passages:
+    #                 if sp not in sp_done and hp not in hp_done:
+    #                     l = level(sp, hp)
+    #                     sp_level_hp.setdefault(sp, {}).setdefault(l, []).append(hp)
+    #         ambiguous = any(len(lv) > 1 for spv in sp_level_hp.values() for lv in spv.values())
+    #         if not ambiguous:
+    #             print("_", sp_level_hp)
+    #             sp_by_levels = sorted(sp_level_hp, key=lambda sp_e: min(sp_level_hp[sp_e]))
+    #             for sp in sp_by_levels:
+    #                 if sp not in sp_done:
+    #                     hp = sp_level_hp[sp][min(sp_level_hp[sp])][0]
+    #                     if hp not in hp_done:
+    #                         r.append(make(sp, hp))
+    #             print(r)
+    #         else:
+    #             print("A", sp_level_hp)
+    # return r
 
 # ----------------------------------------------------------------------
 
