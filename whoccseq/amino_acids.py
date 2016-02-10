@@ -92,17 +92,17 @@ ALIGNMENT_RAW_DATA = [
     ("TNATELVQ",          "A(H3N2)", None, 36,              "HA"),
     ("VERSKAYSN",         "A(H3N2)", None, 87,              "HA"),
 
-    ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,   "signalpeptide", "HA"),
-    ("MKVKLLVLLCTFSATYA", "A(H1N1)", "seas", "signalpeptide", "HA"),
-    ("MKAILVVLLYTFATANA", "A(H1N1)", "pdm",  "signalpeptide", "HA"),
-    ("DTLCIGYHA",         "A(H1N1)", None,   0,               "HA"),
-    ("DTICIGYHANN",       "A(H1N1)", None,   0,               "HA"),
-    ("DTICMGYHANN",       "A(H1N1)", None,   0,               "HA"),
-    ("GYHANNSTDTV",       "A(H1N1)", None,   5,               "HA"),
-    ("GYHANNSADTV",       "A(H1N1)", None,   5,               "HA"),
+    ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,       "signalpeptide", "HA"),
+    ("MKVKLLVLLCTFSATYA", "A(H1N1)", "SEASONAL", "signalpeptide", "HA"),
+    ("MKAILVVLLYTFATANA", "A(H1N1)", "2009PDM",  "signalpeptide", "HA"),
+    ("DTLCIGYHA",         "A(H1N1)", None,       0,               "HA"),
+    ("DTICIGYHANN",       "A(H1N1)", None,       0,               "HA"),
+    ("DTICMGYHANN",       "A(H1N1)", None,       0,               "HA"),
+    ("GYHANNSTDTV",       "A(H1N1)", None,       5,               "HA"),
+    ("GYHANNSADTV",       "A(H1N1)", None,       5,               "HA"),
     # ("HANNSTDT",          "A(H1N1)", None,   7,               "HA"),
 
-    ("MNPNQKIITIGSVCMTI", "A(H1N1)", "pdm",  0,               "NA"), # http://sbkb.org/
+    ("MNPNQKIITIGSVCMTI", "A(H1N1)", "2009PDM",  0,               "NA"), # http://sbkb.org/
     ("MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL", "A(H1N1)", None,  0, "M1"), # http://sbkb.org/
 
     ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide", "HA"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf

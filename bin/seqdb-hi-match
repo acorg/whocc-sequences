@@ -43,11 +43,11 @@ def match(db, hi):
                 for lab in e2["labs"]:
                     lab_to_entries.setdefault(lab, []).append(e2)
         for lab, e2l in lab_to_entries.items():
-            hi_entry = hi.find_antigen_by_name(virus_type, lab, name)
+            hi_entry, vt = hi.find_antigen_by_name(virus_type, lab, name)
             if not hi_entry and lab == "CDC":
                 for e2 in e2l:
                     for cdcid in e2["labs"][lab]:
-                        hi_entry = hi.find_antigen_by_cdcid(virus_type, cdcid)
+                        hi_entry, vt = hi.find_antigen_by_cdcid(virus_type, cdcid)
                         if hi_entry:
                             break
                     if hi_entry:
@@ -56,17 +56,23 @@ def match(db, hi):
                 # matches = match_passages(set().union(*(set(e2["passages"]) for e2 in e2l)) or [""], list(hi_entry["passage_table_name"]))
                 matches = match_passages(name, [e2["passages"] or [""] for e2 in e2l], list(hi_entry["passage_table_name"]))
                 if matches:
-                    apply_matches(matches, e2l, hi_entry["passage_table_name"])
+                    apply_matches(matches, name, e1, e2l, hi_entry, vt)
                 # print(name, lab, list(hi_entry["passage_table_name"]), "----", [e2["passages"] for e2 in e2l])
 
 # ----------------------------------------------------------------------
 
-def apply_matches(matches, seq_entries, hi_passage_table_name):
+def apply_matches(matches, name, db_entry, seq_entries, hi_entry, vt):
     global STAT_WHOCC_ANNUAL_REPORT
     for m in matches:
         for seq_entry in seq_entries:
             if m[0] in seq_entry["passages"] or (m[0] == "" and not seq_entry["passages"]):
+                hi_passage_table_name = hi_entry["passage_table_name"]
                 seq_entry["hi_name"] = hi_passage_table_name[m[1]]["name"]
+                if vt == "B":
+                    update_b_lineage(name=name, hi_name=seq_entry["hi_name"], db_entry=db_entry, hi_entry=hi_entry)
+                elif vt[:2] == "H1":
+                    update_h1_lineage(name=name, hi_name=seq_entry["hi_name"], db_entry=db_entry, vt=vt)
+                update_date(name=name, hi_name=seq_entry["hi_name"], db_entry=db_entry, hi_entry=hi_entry)
 
                 # # STAT_WHOCC_ANNUAL_REPORT
                 # for table in hi_passage_table_name[m[1]]["tables"]:
@@ -81,6 +87,45 @@ def apply_matches(matches, seq_entries, hi_passage_table_name):
                         if es[0] <= table and es[1] > table:
                                 es[2] += 1
                 break
+
+# ----------------------------------------------------------------------
+
+def update_b_lineage(name, hi_name, db_entry, hi_entry):
+    if hi_entry.get("lineage"):
+        if len(hi_entry["lineage"]) == 1:
+            lineage = list(hi_entry["lineage"])[0]
+        else:
+            # multiple lineages, use one from the most recent table
+            lineage = sorted(hi_entry["lineage"], key=lambda l: sorted(hi_entry["lineage"][l])[-1])[-1]
+            # module_logger.warning('Multiple lineages for {} {}: {}'.format(name, hi_name, hi_entry["lineage"]))
+        update_lineage(name=name, hi_name=hi_name, db_entry=db_entry, lineage=lineage)
+
+# ----------------------------------------------------------------------
+
+def update_h1_lineage(name, hi_name, db_entry, vt):
+    if vt == "H1PDM":
+        lineage = "2009PDM"
+    elif vt == "H1SEAS":
+        lineage = "SEASONAL"
+    else:
+        raise ValueError("Unrecognized HI vt: {}".format(vt))
+    update_lineage(name=name, hi_name=hi_name, db_entry=db_entry, lineage=lineage)
+
+# ----------------------------------------------------------------------
+
+def update_lineage(name, hi_name, db_entry, lineage):
+    if not db_entry.get("lineage"):
+        db_entry["lineage"] = lineage
+    elif db_entry["lineage"] != lineage:
+        module_logger.warning('Lineage mismatch for {} {}: seq:{} hi:{}'.format(name, hi_name, db_entry["lineage"], lineage))
+
+# ----------------------------------------------------------------------
+
+def update_date(name, hi_name, db_entry, hi_entry):
+    for date in hi_entry.get("date", []):
+        if date not in db_entry["dates"]:
+            db_entry["dates"].append(date)
+    db_entry["dates"].sort()
 
 # ----------------------------------------------------------------------
 
@@ -228,21 +273,21 @@ class HIDB:
         self.db = open_file.read_json(filename)
 
     def find_antigen_by_name(self, virus_type, lab, name):
-        r = None
+        r = [None, None]
         for vt in self._virus_types(lab, virus_type):
-            r = self.db[lab][vt]["antigens"]["name"].get(name)
+            r = [self.db[lab][vt]["antigens"]["name"].get(name), vt] # return vt to detect H1 lineage
             if r:
                 break
         return r
 
     def find_antigen_by_cdcid(self, virus_type, cdcid):
-        r = None
+        r = [None, None]
         for vt in self._virus_types("CDC", virus_type):
             n = self.db["CDC"][vt]["antigens"]["lab_id"].get("CDC#{}".format(cdcid))
             if n:
                 if len(n) > 1:
                     module_logger.warning('Multiple names for cdcid {} {}: {}'.format(virus_type, cdcid, n))
-                r = self.db["CDC"][vt]["antigens"]["name"].get(n[0])
+                r = [self.db["CDC"][vt]["antigens"]["name"].get(n[0]), vt]
                 break
         return r
 

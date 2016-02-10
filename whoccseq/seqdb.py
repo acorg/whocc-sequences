@@ -25,7 +25,11 @@ class Exclude (Exception): pass
 
 # ----------------------------------------------------------------------
 
-# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence-nucleotides>, "aa": <sequence-amino-acids>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>, "hi_name":}, ...], "virus_type": <virus_type>, "dates": [<date>]}, ...}
+# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence-nucleotides>, "aa": <sequence-amino-acids>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>, "hi_name":}, ...],
+#                     "virus_type": <virus_type>,
+#                     "lineage": <VICTORIA, YAMAGATA, 2009PDM, SEASONAL>,
+#                     "dates": [<date>]},
+#                    ...}
 
 class SeqDB:
 
@@ -189,6 +193,13 @@ class SeqDB:
                     if e2.get("hi_name"):
                         hi_names += 1
         print("HI names: {} ({:.1f}%)".format(hi_names, hi_names / ha_sequences * 100.0))
+
+        lineages = {}
+        for e1 in self.names.values():
+            if e1.get("lineage"):
+                lineages.setdefault(e1["lineage"], 0)
+                lineages[e1["lineage"]] += 1
+        print("Lineages:\n  {}".format("\n  ".join("{:<8s} {:>4d}".format(l, lineages[l]) for l in sorted(lineages))))
 
         # --------------------------------------------------
 
