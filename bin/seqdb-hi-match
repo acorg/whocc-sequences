@@ -5,13 +5,17 @@
 Updates seqdb with matching HI names
 """
 
-import sys, os, re, traceback, pprint
+import sys, os, re, traceback, pprint, datetime
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
 from whoccseq import seqdb
 from whoccseq import fasta as fasta_m, open_file
+
+# ----------------------------------------------------------------------
+
+STAT_WHOCC_ANNUAL_REPORT = [["{}0201".format(year), "{}0201".format(year + 1), 0] for year in range(2000, datetime.date.today().year + 1)]
 
 # ----------------------------------------------------------------------
 
@@ -24,6 +28,9 @@ def main(args):
     db.report()
     if args.save:
         db.save()
+    global STAT_WHOCC_ANNUAL_REPORT
+    pprint.pprint(STAT_WHOCC_ANNUAL_REPORT)
+    print("Total matched:", sum(es[2] for es in STAT_WHOCC_ANNUAL_REPORT))
 
 # ----------------------------------------------------------------------
 
@@ -48,7 +55,32 @@ def match(db, hi):
             if hi_entry:
                 # matches = match_passages(set().union(*(set(e2["passages"]) for e2 in e2l)) or [""], list(hi_entry["passage_table_name"]))
                 matches = match_passages(name, [e2["passages"] or [""] for e2 in e2l], list(hi_entry["passage_table_name"]))
+                if matches:
+                    apply_matches(matches, e2l, hi_entry["passage_table_name"])
                 # print(name, lab, list(hi_entry["passage_table_name"]), "----", [e2["passages"] for e2 in e2l])
+
+# ----------------------------------------------------------------------
+
+def apply_matches(matches, seq_entries, hi_passage_table_name):
+    global STAT_WHOCC_ANNUAL_REPORT
+    for m in matches:
+        for seq_entry in seq_entries:
+            if m[0] in seq_entry["passages"] or (m[0] == "" and not seq_entry["passages"]):
+                seq_entry["hi_name"] = hi_passage_table_name[m[1]]["name"]
+
+                # # STAT_WHOCC_ANNUAL_REPORT
+                # for table in hi_passage_table_name[m[1]]["tables"]:
+                #     for es in STAT_WHOCC_ANNUAL_REPORT:
+                #         if es[0] <= table and es[1] > table:
+                #             es[2] += 1
+
+                # use just the most recent table to avoid counting twice
+                if hi_passage_table_name[m[1]]["tables"]:
+                    table = sorted(hi_passage_table_name[m[1]]["tables"])[-1]
+                    for es in STAT_WHOCC_ANNUAL_REPORT:
+                        if es[0] <= table and es[1] > table:
+                                es[2] += 1
+                break
 
 # ----------------------------------------------------------------------
 
@@ -64,13 +96,9 @@ def match_passages(name, seq_passages, hi_passages):
         while seq_left and hi_left:
             levels = sorted(([match_level(seq_p, hi_p), seq_p, hi_p] for seq_group in seq_left for seq_p in seq_group for hi_p in hi_left), key=lambda e: e[0])
             # print("? {:48s} {:60s} {}".format(name, repr(seq_left), levels), file=sys.stderr)
-            if len(levels) == 1 or levels[0][0] == 0 or levels[0][0] < levels[1][0] or levels[0][0] <= 11:
-                r.append(levels[0][1:])
-                seq_left = [e for e in seq_left if levels[0][1] not in e]
-                hi_left.remove(levels[0][2])
-            else:
-                print("{:50s} {:60s} {}".format(name, repr(seq_left), levels), file=sys.stderr)
-                break
+            r.append(levels[0][1:])
+            seq_left = [e for e in seq_left if levels[0][1] not in e]
+            hi_left.remove(levels[0][2])
     return r
 
 # ----------------------------------------------------------------------
@@ -82,6 +110,8 @@ sRePassage = re.compile("".join(sRePassageGroup.format(i) for i in range(10)) + 
 def match_level(sp, hp):
     if not sp:
         level = 90
+        if hp == "X?":
+            level -= 1
     elif not hp:
         level = 91
     elif sp == hp:
@@ -116,6 +146,13 @@ def match_level(sp, hp):
                             level -= 1
                         else:
                             break
+                elif close_passage_type(spp[-1], hpp[-1]):
+                    level = 40
+                    for i in range(2, min(len(spp), len(hpp)) + 1):
+                        if close_passage_type(spp[-i], hpp[-i]):
+                            level -= 1
+                        else:
+                            break
                 else:
                     # module_logger.warning('{} {} {} --- {} {} {}'.format(sp, spp, sm.group("date"), hp, hpp, hm.group("date")))
                     level = 100
@@ -132,6 +169,14 @@ def same_passage_type(sp, hp):
     sp_m = sReSplitPassageNumber.match(sp)
     hp_m = sReSplitPassageNumber.match(hp)
     return sp_m and hp_m and sp_m.group(1) == hp_m.group(1)
+
+def close_passage_type(sp, hp):
+    global sReSplitPassageNumber
+    sp_m = sReSplitPassageNumber.match(sp)
+    hp_m = sReSplitPassageNumber.match(hp)
+    sp_p = sp_m and ("MDCK" if sp_m.group(1) == "SIAT" else sp_m.group(1))
+    hp_p = hp_m and ("MDCK" if hp_m.group(1) == "SIAT" else hp_m.group(1))
+    return sp_p and hp_p and sp_p == hp_p
 
 # ----------------------------------------------------------------------
 
