@@ -8,7 +8,7 @@ Class to access sequence database
 
 import os, sys, json
 import logging; module_logger = logging.getLogger(__name__)
-from . import open_file, acmacs, amino_acids
+from . import open_file, acmacs, amino_acids, utility
 from .utility import timeit
 
 # TODO
@@ -86,14 +86,26 @@ class SeqDB:
 
         # --------------------------------------------------
 
+    def select(self, lab, virus_type, lineage, gene):
+        data = self.all()
+        if lab:
+            data = self.select_by("lab", lab.upper(), data)
+        virus_type, lineage = utility.fix_virus_type_lineage(virus_type, lineage)
+        if virus_type:
+            data = self.select_by("virus_type", virus_type, data)
+        if lineage:
+            data = self.select_by("lineage", lineage, data)
+        data = self.select_by("gene", gene.upper(), data)
+        return data
+
     def all(self):
         return self.names
 
     def select_by(self, field, value, source=None):
         if source is None:
             source = self.all()
-        if field == "virus_type":
-            data = {n: e for n,e in source.items() if e[field] == value}
+        if field in ["virus_type", "lineage"]:
+            data = {n: e for n,e in source.items() if e.get(field) == value}
         elif field == "lab":
             def fix_lab(entry):
                 e = {f: v for f,v in entry.items() if v != "labs"}

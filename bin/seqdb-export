@@ -17,12 +17,7 @@ from whoccseq import fasta as fasta_m, open_file
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    data = db.all()
-    if args.lab:
-        data = db.select_by("lab", args.lab.upper(), data)
-    if args.virus_type:
-        data = db.select_by("virus_type", fix_virus_type(args.virus_type), data)
-    data = db.select_by("gene", args.gene.upper(), data)
+    data = db.select(lab=args.lab, virus_type=args.virus_type, lineage=args.lineage, gene=args.gene)
     if args.aligned:
         data = db.select_aligned(data)
     names = db.names_sorted_by(args.sort_by, data)
@@ -40,36 +35,25 @@ def export(db, data, names, args):
         for name in names:
             e1  = data[name]
             for e2 in e1["data"]:
-                date = e1["dates"][-1] if e1.get("dates") else ""
+                date = e1["dates"][-1] if e1.get("dates") else "NO-DATE"
                 lab = next(iter(e2.get("labs", {}).keys()), "")
                 if lab:
                     lab_id = next(iter(e2["labs"][lab]), "")
                 else:
                     lab_id = ""
-                name_to_write = re.sub(r"\s+", " ", args.name_format.format(name=name, passage=next(iter(e2["passages"]), ""), date=date, lab_id=lab_id, lab=lab, gene=e2.get("gene", "")))
+                name_to_write = re.sub(r"\s-", "-", re.sub(r"\s+", " ", args.name_format.format(name=name, passage=next(iter(e2["passages"]), ""), date=date, lab_id=lab_id, lab=lab, gene=e2.get("gene", ""))))
                 f.write(fasta_m.generate_one(name=name_to_write, sequence=db.get(e2, amino_acid=args.amino_acids, aligned=args.aligned), encode=args.name_encode, split=args.sequence_wrap).encode("utf-8"))
-
-# ----------------------------------------------------------------------
-
-def fix_virus_type(vt):
-    vt = vt.upper()
-    if vt == "H1":
-        vt = "A(H1N1)"
-    elif vt == "H3":
-        vt = "A(H3N2)"
-    if vt not in ["B", "A(H1N1)", "A(H3N2)"]:
-        raise ValueError("Unrecognized virus type: {}".format(vt))
-    return vt
 
 # ----------------------------------------------------------------------
 
 try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('output', nargs="?", help='Fasta files to write.')
+    parser.add_argument('output', nargs="?", help='Fasta file to write.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--lab', action='store', dest='lab', default=None, help='Export just for this lab.')
     parser.add_argument('--flu', action='store', dest='virus_type', default=None, help='Export just for this virus type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
+    parser.add_argument('--lineage', action='store', dest='lineage', default=None, help='Export just for this lineage: VICTORIA, YAMAGATA, 2009PDM.')
     parser.add_argument('--gene', action='store', dest='gene', default="HA", help='HA or NA.')
     parser.add_argument('--sort', action='store', dest='sort_by', default="date", help='Sort list before exporting by "date", "name".')
     parser.add_argument('-f', '--format', action='store', dest='output_format', default='fasta', help='Output format: fasta')

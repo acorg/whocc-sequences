@@ -17,10 +17,7 @@ from whoccseq import fasta as fasta_m, open_file
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    data = db.select_by("virus_type", fix_virus_type(args.virus_type))
-    if args.lab:
-        data = db.select_by("lab", args.lab.upper(), data)
-    data = db.select_by("gene", args.gene.upper(), data)
+    data = db.select(lab=args.lab, virus_type=args.virus_type, lineage=args.lineage, gene=args.gene)
     data = db.select_aligned(data)
     aa = db.get_aa(data, aligned=True)
     print("aa", len(aa))
@@ -64,6 +61,7 @@ try:
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--lab', action='store', dest='lab', default=None, help='lab.')
     parser.add_argument('--flu', action='store', dest='virus_type', required=True, help='virus type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
+    parser.add_argument('--lineage', action='store', dest='lineage', default=None, help='Export just for this lineage: VICTORIA, YAMAGATA, 2009PDM.')
     parser.add_argument('--gene', action='store', dest='gene', default="HA", help='HA or NA.')
     parser.add_argument('--min-common', action='store', type=int, dest='min_common_in_group', default=10, help='Minimum common in a group.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
