@@ -77,7 +77,7 @@ def normalize_virus_type(vt, fn):
 
 def collect_files(source_dir):
     import glob
-    r = [make_file_entry(fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2"))]
+    r = [make_file_entry(fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2")) if "aminoacid.fas.bz2" not in fn]
     r.sort(key=lambda e: e["date"])
     module_logger.debug('{} fasta files found for {} {}'.format(len(r), sorted(set(e["lab"] for e in r)), sorted(set(e["virus_type"] for e in r))))
     return r

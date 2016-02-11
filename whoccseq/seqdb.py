@@ -257,7 +257,7 @@ class SeqDB:
                 new_entry = {"labs": {}, "passages": []}
                 self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new", db_entry=entry)
                 entry["data"].append(new_entry)
-                module_logger.info('new sequence entry added {} {}'.format(data["name"], data.get("passage", "")))
+                module_logger.debug('new sequence entry added {} {}'.format(data["name"], data.get("passage", "")))
                 new = True
             elif sameseq["type"] == "update":
                 self._update_entry_passage(entry_passage=entry["data"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"], db_entry=entry)
