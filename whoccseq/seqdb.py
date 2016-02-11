@@ -44,8 +44,11 @@ class SeqDB:
         name, passage, date will be normalized before adding.
         """
         self.normalize(data)
+        num_added = 0
         for entry in data:
-            self._add_sequence(entry)
+            if self._add_sequence(entry):
+                num_added += 1
+        module_logger.info('{} new sequences added'.format(num_added))
 
         # --------------------------------------------------
 
@@ -234,10 +237,12 @@ class SeqDB:
                     module_logger.warning('Suspicious name {!r}'.format(name))
                 entry = {"data": [], "virus_type": data["virus_type"], "dates": []}
                 self.names[name] = entry
-            self._update_db_entry(entry, data)
+            new = self._update_db_entry(entry, data)
             self._update_cdcid(data)
         else:
             module_logger.warning('Entry without name: {}'.format(data["lab_id"]))
+            new = False
+        return new
 
     def _update_db_entry(self, entry, data):
         if entry["virus_type"] != data["virus_type"]:
@@ -246,11 +251,14 @@ class SeqDB:
             entry["dates"].append(data["date"])
             entry["dates"].sort()
         sameseq = self._look_for_the_same_sequence(entry, data)
+        new = False
         try:
             if sameseq is None:
                 new_entry = {"labs": {}, "passages": []}
                 self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new", db_entry=entry)
                 entry["data"].append(new_entry)
+                module_logger.info('new sequence entry added {} {}'.format(data["name"], data.get("passage", "")))
+                new = True
             elif sameseq["type"] == "update":
                 self._update_entry_passage(entry_passage=entry["data"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"], db_entry=entry)
             elif sameseq["type"] == "different-genes":
@@ -259,6 +267,7 @@ class SeqDB:
                 module_logger.error("[INTERNAL] Unrecoginzed sameseq: {}".format(sameseq))
         except Exclude as err:
             module_logger.info('Sequence excluded ({}): {}'.format(err, data["name"]))
+        return new
 
     def _look_for_the_same_sequence(self, entry, data):
         """If no matching sequence found returns None. Else updates

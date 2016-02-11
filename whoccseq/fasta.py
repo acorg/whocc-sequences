@@ -141,7 +141,8 @@ class NameParser:
             if m_cdcid:
                 lab_id = m_cdcid.group("cdcid")
             else:
-                module_logger.warning('Not cdcid: {}'.format(lab_id))
+                if lab_id:
+                    module_logger.warning('Not a cdcid: {}'.format(lab_id))
                 lab_id = None
         return {k: v for k, v in (('name', m.group('name')),
                                   ('date', year and '-'.join((year, m.group('month1') or m.group('month2') or '01', m.group('day1') or '01'))),
