@@ -154,6 +154,7 @@ class NameParser:
         return (lab
                 .replace("Centers for Disease Control and Prevention", "CDC")
                 .replace("Crick Worldwide Influenza Centre", "NIMR")
+                .replace("National Institute for Medical Research", "NIMR")
                 .replace("WHO Collaborating Centre for Reference and Research on Influenza", "MELB")
                 )
 
