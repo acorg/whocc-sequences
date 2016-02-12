@@ -106,7 +106,7 @@ class SeqDB:
     def iterate_sequences(self):
         """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
         for name, db_entry in self.names.items():
-            e = {k: v for k,v in db_entry if k != "data"}
+            e = {k: v for k,v in db_entry.items() if k != "data"}
             e["name"] = name
             for seq in db_entry["data"]:
                 e["seq"] = seq
@@ -238,6 +238,17 @@ class SeqDB:
                 lineages.setdefault(e1["lineage"], 0)
                 lineages[e1["lineage"]] += 1
         print("Lineages:\n  {}".format("\n  ".join("{:<8s} {:>4d}".format(l, lineages[l]) for l in sorted(lineages))))
+
+        clades = {}
+        for e1 in self.names.values():
+            for e2 in e1["data"]:
+                for clade in e2.get("clades", []):
+                    key = "{}-{}".format(e1["virus_type"], clade)
+                    if key in clades:
+                        clades[key] += 1
+                    else:
+                        clades[key] = 1
+        print("Clades:\n  {}".format("\n  ".join("{:<10s} {:>4d}".format(c, clades[c]) for c in sorted(clades))))
 
         # --------------------------------------------------
 
