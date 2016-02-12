@@ -72,6 +72,19 @@ def align(sequence_aa):
 
 # ----------------------------------------------------------------------
 
+# H1pdm will have an extra amino acid (usually K) at position 130 compared to
+# h1seasonal strains circulating after 1995. (Note the numbering starts with a
+# sequence something like DTIC...). I think the main difference between Bvic
+# and Byam is that Bvic has an extra amino acid between residues 164 and
+# 165(Note the numbering starts with a sequence something like DRIC...).
+
+# It looks like there are some H3N2v viruses (ie swine-> human infections) in the seqs.
+# A%28H3N2%29/MICHIGAN/39/2015%20MK1/SIAT1-2015-06-12
+# A%28H3N2%29/NEW%20JERSEY/53/2015%20OR-2015-12-26
+# A%28H3N2%29/MINNESOTA/38/2015%20OR-2015-07-06
+
+# ----------------------------------------------------------------------
+
 # http://signalpeptide.com/
 ALIGNMENT_RAW_DATA = [
     ("MKTIIALCYILCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),

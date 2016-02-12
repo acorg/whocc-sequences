@@ -25,11 +25,25 @@ class Exclude (Exception): pass
 
 # ----------------------------------------------------------------------
 
-# self.names is dict {<name>: {"data": [{"passages": [<passage>], "nuc": <sequence-nucleotides>, "aa": <sequence-amino-acids>, "labs": {<lab> :[<lab_id>]}, "gene": <HA|NA>, "hi_name":}, ...],
-#                     "virus_type": <virus_type>,
-#                     "lineage": <VICTORIA, YAMAGATA, 2009PDM, SEASONAL>,
-#                     "dates": [<date>]},
-#                    ...}
+# self.names is dict:
+#    {<name>:
+#        {
+#            "data": [
+#                {
+#                    "passages": [<passage>],
+#                    "nuc": <sequence-nucleotides>,
+#                    "aa": <sequence-amino-acids>,
+#                    "labs": {<lab> :[<lab_id>]},
+#                    "gene": <HA|NA>,
+#                    "hi_name": "",
+#                    "clades": [""],
+#                },
+#            ],
+#            "virus_type": <virus_type>,
+#            "lineage": "VICTORIA",  VICTORIA, YAMAGATA, 2009PDM, SEASONAL
+#            "dates": [<date>]
+#        },
+#    }
 
 class SeqDB:
 
@@ -88,6 +102,15 @@ class SeqDB:
             open_file.write_json(self.path_to_db, data, indent=1, sort_keys=True)
 
         # --------------------------------------------------
+
+    def iterate_sequences(self):
+        """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
+        for name, db_entry in self.names.items():
+            e = {k: v for k,v in db_entry if k != "data"}
+            e["name"] = name
+            for seq in db_entry["data"]:
+                e["seq"] = seq
+                yield e
 
     def select(self, lab, virus_type, lineage, gene):
         data = self.all()
@@ -223,6 +246,12 @@ class SeqDB:
             for e2 in e1["data"]:
                 if "hi_name" in e2:
                     del e2["hi_name"]
+
+    def reset_clade_data(self):
+        for e1 in self.names.values():
+            for e2 in e1["data"]:
+                if "clades" in e2:
+                    del e2["clades"]
 
         # --------------------------------------------------
 
