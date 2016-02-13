@@ -112,6 +112,23 @@ class SeqDB:
                 e["seq"] = seq
                 yield e
 
+    def iterate_sequences_with_name(self, names):
+        """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
+        if isinstance(names, str):
+            names = [names]
+        for name in names:
+            db_entry = self.names.get(name)
+            if db_entry:
+                e = {k: v for k,v in db_entry.items() if k != "data"}
+                e["name"] = name
+                for seq in db_entry["data"]:
+                    e["seq"] = seq
+                    yield e
+            else:
+                module_logger.error('{!r} not found in the database'.format(name))
+
+        # --------------------------------------------------
+
     def select(self, lab, virus_type, lineage, gene):
         data = self.all()
         if lab:
@@ -351,7 +368,7 @@ class SeqDB:
             entry_passage["gene"] = data["gene"]
         if sequence_match in ["super", "new"]:   # update sequences with the longer one
             aa = amino_acids.translate_sequence_to_amino_acid(data["sequence"])
-            self._align(aa, entry_passage, data, db_entry)   # may raise
+            self.align(aa, entry_passage, data, db_entry)   # may raise
             entry_passage["nuc"] = data["sequence"]
             entry_passage["aa"] = aa
 
@@ -366,12 +383,13 @@ class SeqDB:
             else:
                 module_logger.warning('[CDCID] too short (ignored) {!r} {!r}'.format(data["lab_id"], data["name"]))
 
-    def _align(self, sequence, entry_passage, data, db_entry):
+    def align(self, sequence, entry_passage, data, db_entry, verbose=False):
         try:
-            aligment_data = amino_acids.align(sequence)
+            aligment_data = amino_acids.align(sequence, verbose=verbose)
         except amino_acids.SequenceIsTooShort as err:
             raise Exclude(str(err))
         if aligment_data:
+            module_logger.info('aligment_data {}'.format(aligment_data))
             if aligment_data["virus_type"] != db_entry["virus_type"]:
                 module_logger.warning('Virus type detection mismatch {} vs. {}'.format(aligment_data, data))
             if aligment_data.get("lineage"):
@@ -386,7 +404,7 @@ class SeqDB:
             else:
                 entry_passage["gene"] = aligment_data["gene"]
             entry_passage["shift"] = aligment_data["shift"]
-        elif db_entry["virus_type"] in ["A(H3N2)", "A(H1N1)"]:
+        elif verbose: # if db_entry["virus_type"] in ["A(H3N2)", "A(H1N1)"]:
             module_logger.warning('Not aligned {} len:{} {}'.format(data["name"], len(sequence), sequence))
 
     def _aligned(self, entry):

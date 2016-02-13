@@ -59,7 +59,7 @@ class SequenceIsTooShort (Exception): pass
 
 # ----------------------------------------------------------------------
 
-def align(sequence_aa):
+def align(sequence_aa, verbose=False):
     """Returns dict: {"subtype": <detected-flu-subtype>, "lineage": <B, H1 lineage>, "gene": <detected gene>, "shift": <alignment shift>}
     Raises: SequenceIsTooShort
     """
@@ -67,7 +67,7 @@ def align(sequence_aa):
     if len(sequence_aa) < MINIMUM_SEQUENCE_AA_LENGTH:
         raise SequenceIsTooShort("sequence is too short: {}".format(len(sequence_aa)))
     ali = aligner()
-    r = ali.match(sequence_aa)
+    r = ali.match(sequence_aa, verbose=verbose)
     return r
 
 # ----------------------------------------------------------------------
@@ -119,6 +119,7 @@ ALIGNMENT_RAW_DATA = [
     ("MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL", "A(H1N1)", None,  0, "M1"), # http://sbkb.org/
 
     ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide", "HA"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
+    ("MKAIIVLLMVVMSNA", "B", None, "signalpeptide", "HA"),               # inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015
     ("MVVTSNA",         "B", None, "signalpeptide", "HA"),
 ]
 
@@ -143,9 +144,11 @@ class Aligner:
             if lineage:
                 self.data[match_sequence]["lineage"] = lineage
 
-    def match(self, sequence):
+    def match(self, sequence, verbose=False):
         for matcher, matching_data in self.data.items():
             offset = sequence.find(matcher)
+            if verbose:
+                module_logger.info('{}matched with {}'.format("NOT " if offset < 0 else "", matcher))
             if offset >= 0:
                 r = {k: v for k, v in matching_data.items()}
                 r["shift"] -= offset
