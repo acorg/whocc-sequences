@@ -86,72 +86,146 @@ def align(sequence_aa, verbose=False):
 # ----------------------------------------------------------------------
 
 # http://signalpeptide.com/
-ALIGNMENT_RAW_DATA = [
-    ("MKTIIALCYILCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSHIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYIFCLAFA",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYIFCLAFG",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYIFCLALG",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYIFCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYIFCQVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYIFCQVLA",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYILCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIALSYISCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTIIVLSCFFCLAFS",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTLIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("MKTTTILILLTHWVHS",  "A(H3N2)", None, "signalpeptide", "HA"),
-    ("ATLCLGHHAV",        "A(H3N2)", None, 10,              "HA"),
-    ("TNATELVQ",          "A(H3N2)", None, 36,              "HA"),
-    ("VERSKAYSN",         "A(H3N2)", None, 87,              "HA"),
 
-    ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,       "signalpeptide", "HA"),
-    ("MKVKLLVLLCTFSATYA", "A(H1N1)", "SEASONAL", "signalpeptide", "HA"),
-    ("MKAILVVLLYTFATANA", "A(H1N1)", "2009PDM",  "signalpeptide", "HA"),
-    ("DTLCIGYHA",         "A(H1N1)", None,       0,               "HA"),
-    ("DTICIGYHANN",       "A(H1N1)", None,       0,               "HA"),
-    ("DTICMGYHANN",       "A(H1N1)", None,       0,               "HA"),
-    ("GYHANNSTDTV",       "A(H1N1)", None,       5,               "HA"),
-    ("GYHANNSADTV",       "A(H1N1)", None,       5,               "HA"),
+# ALIGNMENT_RAW_DATA = [
+#     ("MKTIIALCYILCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSHIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYIFCLAFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYIFCLAFG",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYIFCLALG",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYIFCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYIFCQVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYIFCQVLA",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYILCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIALSYISCLVFA",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTIIVLSCFFCLAFS",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTLIALSYIFCLVLG",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("MKTTTILILLTHWVHS",  "A(H3N2)", None, "signalpeptide", "HA"),
+#     ("ATLCLGHHAV",        "A(H3N2)", None, 10,              "HA"),
+#     ("TNATELVQ",          "A(H3N2)", None, 36,              "HA"),
+#     ("VERSKAYSN",         "A(H3N2)", None, 87,              "HA"),
+
+#     ("MKVKLLVLLCTFTATYA", "A(H1N1)", None,       "signalpeptide", "HA"),
+#     ("MKVKLLVLLCTFSATYA", "A(H1N1)", "SEASONAL", "signalpeptide", "HA"),
+#     ("MKAILVVLLYTFATANA", "A(H1N1)", "2009PDM",  "signalpeptide", "HA"),
+#     ("DTLCIGYHA",         "A(H1N1)", None,       0,               "HA"),
+#     ("DTICIGYHANN",       "A(H1N1)", None,       0,               "HA"),
+#     ("DTICMGYHANN",       "A(H1N1)", None,       0,               "HA"),
+#     ("GYHANNSTDTV",       "A(H1N1)", None,       5,               "HA"),
+#     ("GYHANNSADTV",       "A(H1N1)", None,       5,               "HA"),
+#     # ("HANNSTDT",          "A(H1N1)", None,   7,               "HA"),
+
+#     ("MNPNQKIITIGSVCMTI", "A(H1N1)", "2009PDM",  0,               "NA"), # http://sbkb.org/
+#     ("MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL", "A(H1N1)", None,  0, "M1"), # http://sbkb.org/
+
+#     ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide", "HA"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
+#     ({"re": re.compile(r"MK[AT]IIVLLMVV[MT]S[NT]A"), "endpos": 20}), "B", None, "signalpeptide", "HA"),               # inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
+#     # ("MKTIIVLLMVVTSTA", "B", None, "signalpeptide", "HA"),               # inferred by Eu for B/CAMEROON/14V-8639/2014
+
+#     ("", "B", None, "signalpeptide", "HA"),               # inferred by Eu for B/CAMEROON/14V-8639/2014
+
+#     ("MVVTSNA",         "B", None, "signalpeptide", "HA"),
+# ]
+
+# MINIMUM_SEQUENCE_AA_LENGTH = 100          # actually H3 3C3b clade requires 261Q
+
+# class Aligner:
+
+#     def __init__(self):
+#         global ALIGNMENT_RAW_DATA
+#         self.data = {}          # sequence-to-match -> {"virus_type":, "lineage":, "shift":}
+#         # check for duplicates
+#         for match_sequence, virus_type, lineage, shift_data, gene  in ALIGNMENT_RAW_DATA:
+#             if match_sequence in self.data:
+#                 raise ValueError("match_sequence duplicate: {}".format(match_sequence))
+#             if shift_data == "signalpeptide":
+#                 if isinstance(match_sequence, str):
+#                     shift = - len(match_sequence)
+#                 else:
+#                     shift = None
+#             elif isinstance(shift_data, int) and shift_data >= 0:   # prefix or infix
+#                 shift = shift_data
+#             else:
+#                 raise ValueError("Unrecognized shift data {!r} for {!r}".format(shift_data, match_sequence))
+#             self.data[match_sequence] = {"virus_type": virus_type, "shift": shift, "gene": gene}
+#             if lineage:
+#                 self.data[match_sequence]["lineage"] = lineage
+
+#     def match(self, sequence, verbose=False):
+#         for matcher, matching_data in self.data.items():
+#             if isinstance(matcher, str):
+#                 offset = sequence.find(matcher)
+#             else:
+#                 m = matcher.search(sequence)
+#                 if m:
+#                     module_logger.error('m {} {}'.format(m, matching_data))
+#                 else:
+#                     offset = -1
+#             if verbose:
+#                 module_logger.debug('{}matched with {}'.format("NOT " if offset < 0 else "", matcher))
+#             if offset >= 0:
+#                 r = {k: v for k, v in matching_data.items()}
+#                 r["shift"] -= offset
+#                 break
+#         else:
+#             r = None
+#         return r
+
+# ----------------------------------------------------------------------
+
+ALIGNMENT_RAW_DATA = [
+    {"re": re.compile(r"MKTIIALCYILCLVFA"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSHIFCLVLG"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYIFCLAFA"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYIFCLAFG"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYIFCLALG"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYIFCLVFA"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYIFCLVLG"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYIFCQVFA"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYIFCQVLA"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYILCLVFA"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIALSYISCLVFA"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTIIVLSCFFCLAFS"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTLIALSYIFCLVLG"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKTTTILILLTHWVHS"),  "endpos": 20,  "virus_type": "A(H3N2)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"ATLCLGHHAV"),        "endpos": 100, "virus_type": "A(H3N2)",                        "shift": 10,           "gene": "HA"},
+    {"re": re.compile(r"TNATELVQ"),          "endpos": 100, "virus_type": "A(H3N2)",                        "shift": 36,           "gene": "HA"},
+    {"re": re.compile(r"VERSKAYSN"),         "endpos": 100, "virus_type": "A(H3N2)",                        "shift": 87,           "gene": "HA"},
+
+    {"re": re.compile(r"MKVKLLVLLCTFTATYA"), "endpos": 20,  "virus_type": "A(H1N1)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKVKLLVLLCTFSATYA"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "SEASONAL", "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKAILVVLLYTFATANA"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"DTLCIGYHA"),         "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
+    {"re": re.compile(r"DTICIGYHANN"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
+    {"re": re.compile(r"DTICMGYHANN"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
+    {"re": re.compile(r"GYHANNSTDTV"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
+    {"re": re.compile(r"GYHANNSADTV"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
     # ("HANNSTDT",          "A(H1N1)", None,   7,               "HA"),
 
-    ("MNPNQKIITIGSVCMTI", "A(H1N1)", "2009PDM",  0,               "NA"), # http://sbkb.org/
-    ("MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL", "A(H1N1)", None,  0, "M1"), # http://sbkb.org/
+    {"re": re.compile(r"MNPNQKIITIGSVCMTI"),                          "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "shift": 0, "gene": "NA"}, # http://sbkb.org/
+    {"re": re.compile(r"MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL"), "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0, "gene": "M1"}, # http://sbkb.org/
 
-    ("MKAIIVLLMVVTSNA", "B", None, "signalpeptide", "HA"),               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
-    ("MKAIIVLLMVVMSNA", "B", None, "signalpeptide", "HA"),               # inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015
-    ("MVVTSNA",         "B", None, "signalpeptide", "HA"),
+    # {"re": re.compile(r"MKAIIVLLMVVTSNA"),                            "endpos": 20, "virus_type": "B", "signalpeptide": True, "gene": "HA"},               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
+    {"re": re.compile(r"MK[AT][AIL][ICX]VLLM[AEILVX][AIVX][AMT]S[DHKNSTX][APX]"), "endpos": 30, "virus_type": "B", "signalpeptide": True, "gene": "HA"},               # inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
+
+    {"re": re.compile(r"MVVTSNA"),                                    "endpos": 20, "virus_type": "B", "signalpeptide": True, "gene": "HA"},
 ]
 
 MINIMUM_SEQUENCE_AA_LENGTH = 100          # actually H3 3C3b clade requires 261Q
 
 class Aligner:
 
-    def __init__(self):
-        global ALIGNMENT_RAW_DATA
-        self.data = {}          # sequence-to-match -> {"virus_type":, "lineage":, "shift":}
-        # check for duplicates
-        for match_sequence, virus_type, lineage, shift_data, gene  in ALIGNMENT_RAW_DATA:
-            if match_sequence in self.data:
-                raise ValueError("match_sequence duplicate: {}".format(match_sequence))
-            if shift_data == "signalpeptide":
-                shift = - len(match_sequence)
-            elif isinstance(shift_data, int) and shift_data >= 0:   # prefix or infix
-                shift = shift_data
-            else:
-                raise ValueError("Unrecognized shift data {!r} for {!r}".format(shift_data, match_sequence))
-            self.data[match_sequence] = {"virus_type": virus_type, "shift": shift, "gene": gene}
-            if lineage:
-                self.data[match_sequence]["lineage"] = lineage
-
     def match(self, sequence, verbose=False):
-        for matcher, matching_data in self.data.items():
-            offset = sequence.find(matcher)
-            if verbose:
-                module_logger.info('{}matched with {}'.format("NOT " if offset < 0 else "", matcher))
-            if offset >= 0:
-                r = {k: v for k, v in matching_data.items()}
-                r["shift"] -= offset
+        global ALIGNMENT_RAW_DATA
+        for e in ALIGNMENT_RAW_DATA:
+            m = e["re"].search(sequence, 0, e["endpos"])
+            if m:
+                r = {k: v for k,v in e.items() if k not in ["re", "endpos", "signalpeptide"]}
+                if e.get("signalpeptide"):
+                    r["shift"] = - m.end()
+                else:
+                    r["shift"] -= m.start()
                 break
         else:
             r = None

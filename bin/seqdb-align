@@ -16,13 +16,19 @@ from whoccseq import seqdb, clades as clades_m, open_file, fasta as fasta_m
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    if len(args.names) == 1 and args.names[0] == "all":
-        it = db.iterate_sequences()
+    if len(args.names) == 1:
+        if args.names[0] == "all":
+            it = db.iterate_sequences()
+        elif args.names[0] == "not-aligned":
+            it = db.iterate_sequences_not_aligned()
+        else:
+            it = db.iterate_sequences_with_name(args.names)
     else:
         it = db.iterate_sequences_with_name(args.names)
     for e in it:
         db.align(sequence=e["seq"]["aa"], entry_passage=e["seq"], data=e, db_entry=e, verbose=True)
-        pprint.pprint(e["seq"])
+        # pprint.pprint(e["seq"])
+    db.report()
     if args.save:
         db.save()
 
@@ -31,7 +37,7 @@ def main(args):
 try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('names', nargs='+', help='Names to align, use "all" to align all.')
+    parser.add_argument('names', nargs='+', help='Names to align, use "all" to align all, "not-aligned" to align not yet aligned.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')

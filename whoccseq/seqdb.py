@@ -127,6 +127,17 @@ class SeqDB:
             else:
                 module_logger.error('{!r} not found in the database'.format(name))
 
+    def iterate_sequences_not_aligned(self):
+        """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
+        for name, db_entry in self.names.items():
+            not_aligned = [seq for seq in db_entry["data"] if "shift" not in seq]
+            if not_aligned:
+                e = {k: v for k,v in db_entry.items() if k != "data"}
+                e["name"] = name
+                for seq in not_aligned:
+                    e["seq"] = seq
+                    yield e
+
         # --------------------------------------------------
 
     def select(self, lab, virus_type, lineage, gene):
@@ -389,7 +400,7 @@ class SeqDB:
         except amino_acids.SequenceIsTooShort as err:
             raise Exclude(str(err))
         if aligment_data:
-            module_logger.info('aligment_data {}'.format(aligment_data))
+            module_logger.debug('aligment_data {}'.format(aligment_data))
             if aligment_data["virus_type"] != db_entry["virus_type"]:
                 module_logger.warning('Virus type detection mismatch {} vs. {}'.format(aligment_data, data))
             if aligment_data.get("lineage"):
@@ -405,7 +416,7 @@ class SeqDB:
                 entry_passage["gene"] = aligment_data["gene"]
             entry_passage["shift"] = aligment_data["shift"]
         elif verbose: # if db_entry["virus_type"] in ["A(H3N2)", "A(H1N1)"]:
-            module_logger.warning('Not aligned {} len:{} {}'.format(data["name"], len(sequence), sequence))
+            module_logger.warning('Not aligned {:<45s} len:{:3d} {}...'.format(data["name"], len(sequence), sequence[:40]))
 
     def _aligned(self, entry):
         s = entry["aa"]
