@@ -1,0 +1,96 @@
+#! /usr/bin/env python3
+# -*- Python -*-
+
+"""
+Generates coloring files based on passed settings json.
+"""
+
+import sys, os, re, traceback, pprint, datetime
+if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
+sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
+import logging; module_logger = logging.getLogger(__name__)
+
+from whoccseq import seqdb, clades as clades_m, open_file, fasta as fasta_m
+
+# ----------------------------------------------------------------------
+
+SETUP_VERSION = "coloring-by-clade-setup-v1"
+
+def main(args):
+    db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+    setup = read_setup(args.setup[0])
+    result = [[] for e in setup]
+    for e in db.iterate_sequences():
+        index = find_setup_entry(setup, e)
+        if index is not None:
+            for clade in e["seq"].get("clades", []):
+                color = setup[index]["colors"].get(clade)   # color is a list: ["red", 2], the second element is priority (antigens with higher priority appear on top of the antigens with lower priority)
+                if color is not None:
+                    break
+            else:
+                color = setup[index]["colors"].get("")
+            if color is not None:
+                result[index].append([e["seq"].get("hi_name") or e["name"]] + color)
+    for index, r in enumerate(result):
+        r.sort(key=lambda e: e[0])
+        if args.format == "aa-subst-coloring-v3":
+            generate_aa_subst_coloring_v3(args.output_dir[0], setup[index], r)
+        else:
+            raise ValueError("Unsupported output format: {}".format(args.format))
+    # pprint.pprint(result, width=200)
+
+# ----------------------------------------------------------------------
+
+def find_setup_entry(setup, e):
+    index = None
+    for i, setup_e in enumerate(setup):
+        if e["virus_type"] == setup_e["virus_type"] and (not setup_e.get("lineage") or e.get("lineage") == setup_e["lineage"]):
+            index = i
+            break
+    return index
+
+# ----------------------------------------------------------------------
+
+def generate_aa_subst_coloring_v3(output_dir, setup, data):
+    os.makedirs(output_dir, exist_ok=True)
+    filename = os.path.join(output_dir, "{}.txt".format(setup["output"]))
+    module_logger.info('Writing {}'.format(filename))
+    open_file.backup_file(filename)
+    with open(filename, "w") as f:
+        f.write("\n".join(["AA substitution coloring version 3", setup["title"], ""]))
+        f.write("\n".join("{} {} {}".format(fasta_m.encode_name(e[0]), e[1], e[2]) for e in data))
+        f.write("\n")
+
+# ----------------------------------------------------------------------
+
+def read_setup(setup_file):
+    setup_data = open_file.read_json(setup_file)
+    if setup_data.get("  version") != SETUP_VERSION:
+        raise RuntimeError("Invalid setup file version: {!r}, expected: {!r}".format(setup_data.get("  version", "**not-found**"), SETUP_VERSION))
+    setup = [e for e in setup_data["data"] if not e.get("DISABLED", False)]
+    return setup
+
+# ----------------------------------------------------------------------
+
+try:
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('setup', nargs=1, help='setup.json to get coloring by clade description, see seqdb/coloring-by-clade.json')
+    parser.add_argument('output_dir', nargs=1, help='Directory to put output files to.')
+    parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
+    parser.add_argument('-f', '--format', action='store', dest='format', default="aa-subst-coloring-v3", help='Format for the output files: aa-subst-coloring-v3.')
+    parser.add_argument('--lab', action='store', dest='lab', default=None, help='Write coloring data just for this lab.')
+    parser.add_argument('--flu', action='store', dest='virus_type', default=None, help='Write coloring data just for this this virus type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
+    exit_code = main(args)
+except Exception as err:
+    logging.error('{}\n{}'.format(err, traceback.format_exc()))
+    exit_code = 1
+exit(exit_code)
+
+# ======================================================================
+### Local Variables:
+### eval: (if (fboundp 'eu-rename-buffer) (eu-rename-buffer))
+### End:
