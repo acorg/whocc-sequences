@@ -206,8 +206,14 @@ ALIGNMENT_RAW_DATA = [
     {"re": re.compile(r"MNPNQKIITIGSVCMTI"),                          "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "shift": 0, "gene": "NA"}, # http://sbkb.org/
     {"re": re.compile(r"MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL"), "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0, "gene": "M1"}, # http://sbkb.org/
 
-    # {"re": re.compile(r"MKAIIVLLMVVTSNA"),                            "endpos": 20, "virus_type": "B", "signalpeptide": True, "gene": "HA"},               # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
-    {"re": re.compile(r"MK[AT][AIL][ICX]VLLM[AEILVX][AIVX][AMT]S[DHKNSTX][APX]"), "endpos": 30, "virus_type": "B", "signalpeptide": True, "gene": "HA"},               # inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
+    {"re": re.compile(r"MK[AT][AIL][ICX]VLL[IMT][AEILVX][AIVX][AMT]S[DHKNSTX][APX]"), "endpos": 30, "virus_type": "B", "signalpeptide": True, "gene": "HA"}, # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf, inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
+    {"re": re.compile(r"DR[ISV]C[AST][GX][ITV][IT][SWX]S[DKNX]SP[HXY][ILTVX][VX][KX]T[APT]T[QX][GV][EK][IV]NVTG[AV]I[LPS]LT[AITX][AIST][LP][AIT][KRX]"), "endpos": 50, "virus_type": "B", "shift": 0, "gene": "HA"},
+    {"re": re.compile(r"CTG[IVX]TS[AS]NSPHVVKTATQGEVNVTGVIPLTTTP"), "endpos": 50, "virus_type": "B", "shift": 3, "gene": "HA"},
+    {"re": re.compile(r"[XV]NVTGVIPLTTTPTK"), "endpos": 50, "virus_type": "B", "shift": 23, "gene": "HA"},
+    {"re": re.compile(r"MLPSTIQ[MT]LTL[FY][IL]TSGGVLLSLY[AV]S[AV][LS]LSYLLY[SX]DIL[LX][KR]F"), "endpos": 45, "virus_type": "B", "gene": "NA"},
+    {"re": re.compile(r"MA[DN]NMTT[AT]QIEVGPGATNAT[IM]NFEAGILECYERLSWQ[KR]AL"),                "endpos": 45, "virus_type": "B", "gene": "NS1"},
+    {"re": re.compile(r"MA[NX][DN][NX]MTTTQIEVGPGATNATINFEAGILECYERLSWQR"),                    "endpos": 45, "virus_type": "B", "gene": "NS1"}, # has insertion at 2 or 3 compared to the above
+    {"re": re.compile(r"GNFLWLLHV"),                                                           "endpos": 45, "virus_type": "B", "gene": "?-CNIC"}, # Only CNIC sequences 2008-2009 have it, perhaps no HA
 
     {"re": re.compile(r"MVVTSNA"),                                    "endpos": 20, "virus_type": "B", "signalpeptide": True, "gene": "HA"},
 ]
@@ -224,8 +230,10 @@ class Aligner:
                 r = {k: v for k,v in e.items() if k not in ["re", "endpos", "signalpeptide"]}
                 if e.get("signalpeptide"):
                     r["shift"] = - m.end()
-                else:
+                elif r.get("shift") is not None:
                     r["shift"] -= m.start()
+                else:
+                    r["shift"] = None
                 break
         else:
             r = None

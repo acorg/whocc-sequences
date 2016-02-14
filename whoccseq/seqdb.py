@@ -238,17 +238,18 @@ class SeqDB:
         not_aligned = {}
         for n, e1 in self.names.items():
             for e2 in e1["data"]:
-                if e2.get("shift") is not None:
-                    aligned.setdefault(e1["virus_type"], 0)
-                    aligned[e1["virus_type"]] += 1
-                else:
-                    not_aligned.setdefault(e1["virus_type"], 0)
-                    not_aligned[e1["virus_type"]] += 1
+                if e2.get("gene", "HA") == "HA":
+                    if e2.get("shift") is not None:
+                        aligned.setdefault(e1["virus_type"], 0)
+                        aligned[e1["virus_type"]] += 1
+                    else:
+                        not_aligned.setdefault(e1["virus_type"], 0)
+                        not_aligned[e1["virus_type"]] += 1
         aligned[" All"] = sum(aligned.values())
         not_aligned[" All"] = sum(not_aligned.values())
         total = {k: (aligned[k] + not_aligned.get(k, 0)) for k in aligned}
         ks = sorted(aligned)
-        print("Aligned:\n  {}\nNot aligned\n  {}".format("\n  ".join("{:<7s} {:d} {:.1f}%".format(k.strip(), aligned[k], (aligned[k] / total[k]) * 100.0) for k in ks), "\n  ".join("{:<7s} {}".format(k.strip(), not_aligned.get(k, 0)) for k in ks)))
+        print("HA aligned:\n  {}\nHA not aligned\n  {}".format("\n  ".join("{:<7s} {:d} {:.1f}%".format(k.strip(), aligned[k], (aligned[k] / total[k]) * 100.0) for k in ks), "\n  ".join("{:<7s} {}".format(k.strip(), not_aligned.get(k, 0)) for k in ks)))
 
         ha_sequences = 0
         hi_names = 0
