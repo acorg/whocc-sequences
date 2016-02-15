@@ -28,10 +28,10 @@
             "virus_type": "A(H1N1)",
             "title": "A(H1N1) by clade\n6B.1=Blue, 6B.2=Red, 6B.3=Green, unsequenced=Grey",
             "colors": [
-                {"clade": "6B.1", "color": "blue",  "priority": 1},
-                {"clade": "6B.2", "color": "red",   "priority": 1},
-                {"clade": "6B.3", "color": "green", "priority": 1},
-                {"clade": "",     "color": "black", "priority": 1}
+                {"clade": "6B.1", "color": "blue",    "priority": 3},
+                {"clade": "6B.2", "color": "red",     "priority": 2},
+                {"clade": "6B.3", "color": "green",   "priority": 4},
+                {"clade": "",     "color": "#B0B0B0", "priority": 1}
             ],
             "output": "h1pdm-clade"
         },
