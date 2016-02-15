@@ -195,18 +195,15 @@ ALIGNMENT_RAW_DATA = [
 
     {"re": re.compile(r"MKVKLLVLLCTFTATYA"), "endpos": 20,  "virus_type": "A(H1N1)",                        "signalpeptide": True, "gene": "HA"},
     {"re": re.compile(r"MKVKLLVLLCTFSATYA"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "SEASONAL", "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"MKAILVVLLYTFATANA"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"M[EK]AIL[VX][VX][LM]L[CHY]T[FL][AT]T[AT][NS]A"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA"},
     {"re": re.compile(r"DTLCIGYHA"),         "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
-    {"re": re.compile(r"DTICIGYHANN"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
-    {"re": re.compile(r"DTICMGYHANN"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
-    {"re": re.compile(r"GYHANNSTDTV"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
-    {"re": re.compile(r"GYHANNSADTV"),       "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
-    # ("HANNSTDT",          "A(H1N1)", None,   7,               "HA"),
+    {"re": re.compile(r"DT[IL]C[IM]G[XY]H[AX]NN"),    "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
+    {"re": re.compile(r"GYHANNS[AT]DTV"),    "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
 
     {"re": re.compile(r"MNPNQKIITIGSVCMTI"),                          "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "shift": 0, "gene": "NA"}, # http://sbkb.org/
     {"re": re.compile(r"MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL"), "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0, "gene": "M1"}, # http://sbkb.org/
 
-    {"re": re.compile(r"MK[AT][AIL][ICX]VLL[IMT][AEILVX][AIVX][AMT]S[DHKNSTX][APX]"), "endpos": 30, "virus_type": "B", "signalpeptide": True, "gene": "HA"}, # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf, inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
+    {"re": re.compile(r"M[EKT][AT][AIL][ICX]VLL[IMT][AEILVX][AIVX][AMT]S[DHKNSTX][APX]"), "endpos": 30, "virus_type": "B", "signalpeptide": True, "gene": "HA"}, # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf, inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
     {"re": re.compile(r"DR[ISV]C[AST][GX][ITV][IT][SWX]S[DKNX]SP[HXY][ILTVX][VX][KX]T[APT]T[QX][GV][EK][IV]NVTG[AV]I[LPS]LT[AITX][AIST][LP][AIT][KRX]"), "endpos": 50, "virus_type": "B", "shift": 0, "gene": "HA"},
     {"re": re.compile(r"CTG[IVX]TS[AS]NSPHVVKTATQGEVNVTGVIPLTTTP"), "endpos": 50, "virus_type": "B", "shift": 3, "gene": "HA"},
     {"re": re.compile(r"[XV]NVTGVIPLTTTPTK"), "endpos": 50, "virus_type": "B", "shift": 23, "gene": "HA"},

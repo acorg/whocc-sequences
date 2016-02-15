@@ -417,7 +417,7 @@ class SeqDB:
                 entry_passage["gene"] = aligment_data["gene"]
             entry_passage["shift"] = aligment_data["shift"]
         elif verbose: # if db_entry["virus_type"] in ["A(H3N2)", "A(H1N1)"]:
-            module_logger.warning('Not aligned {:<45s} len:{:3d} {}...'.format(data["name"], len(sequence), sequence[:40]))
+            module_logger.warning('Not aligned {:<45s} len:{:3d} {}'.format(data["name"], len(sequence), sequence[:40]))
 
     def _aligned(self, entry):
         s = entry["aa"]
