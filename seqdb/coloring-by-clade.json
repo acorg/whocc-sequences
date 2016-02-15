@@ -4,79 +4,62 @@
         {
             "virus_type": "B",
             "lineage": "YAMAGATA",
-            "title": "Byam by clade\n2=Blue, 3=Red, unsequenced=Grey",
-            "colors": {
-                "Y2": ["cornflowerblue", 2],
-                "Y3": ["red", 3],
-                "":   ["black", 1]
-            },
+            "title": "B/Yam by clade\n2=Blue, 3=Red, unsequenced=Grey",
+            "colors": [
+                {"clade": "Y2", "color": "cornflowerblue", "priority": 2},
+                {"clade": "Y3", "color": "red",            "priority": 3},
+                {"clade": "",   "color": "black",          "priority": 1}
+            ],
             "output": "byam-clade"
         },
 
 
         {
-            "DISABLED": true,
-            "subtype": "H3",
-            "title": "159\n3C2/3C3=Blue, 3C2a=Red, 3C3a=Green, 3C3b=DarkBlue, unsequenced=Grey",
-            "position": [159, 83, 261],
-            "colors": {
-                "F":   "cornflowerblue",
-                "FRQ": "blue",
-                "Y":   "red",
-                "S":   "green"
-            },
-            "order": "SYF",
+            "virus_type": "B",
+            "lineage": "VICTORIA",
+            "title": "B/Vic\nsequenced=Red, unsequenced=Grey",
+            "colors": [
+                {"clade": "", "color": "red", "priority": 1}
+            ],
+            "output": "bvic-clade"
+        },
+
+        {
+            "virus_type": "A(H1N1)",
+            "title": "A(H1N1) by clade\n6B.1=Blue, 6B.2=Red, 6B.3=Green, unsequenced=Grey",
+            "colors": [
+                {"clade": "6B.1", "color": "blue",  "priority": 1},
+                {"clade": "6B.2", "color": "red",   "priority": 1},
+                {"clade": "6B.3", "color": "green", "priority": 1},
+                {"clade": "",     "color": "black", "priority": 1}
+            ],
+            "output": "h1pdm-clade"
+        },
+
+        {
+            "virus_type": "A(H3N2)",
+            "title": "159\n3C2/3C3=Blue, 3C2a=Red, 3C3a=Green, unsequenced=Grey",
+            "colors": [
+                {"clade": "3C",   "color": "cornflowerblue", "priority": 1},
+                {"clade": "3C2a", "color": "red",            "priority": 2},
+                {"clade": "3C3a", "color": "green",          "priority": 3}
+            ],
             "output": "h3-clade"
         },
 
         {
-            "DISABLED": true,
-            "subtype": "H3",
-            "title": "159\n3C2/3C3=Blue, 3C2a=Red, 3C3a=Green, unsequenced=Grey",
-            "position": 159,
-            "colors": {
-                "F":   "cornflowerblue",
-                "Y":   "red",
-                "S":   "green"
-            },
-            "order": "SYF",
-            "output": "h3-clade-old"
-        },
-
-        {
-            "DISABLED": true,
             "comment": "158N, 159F -> 3C, 159Y -> 3c2a, 159S -> 3c3a, 160S -> gly, 160T -> gly, 160x -> no gly",
-            "subtype": "H3",
+            "virus_type": "A(H3N2)",
             "title": "Glycosylation at 158-160: 3C no gly=LightBlue, 3C w/gly=Blue\n3c2a w/gly=Red, 3c2a no gly=Gold, 3c3a w/gly=DarkGreen, 3c3a no gly=Green",
-            "position": [158, 159, 160],
-            "colors": {
-                "NFS": "blue",
-                "NFT": "blue",
-                "NF":  "LightBlue",
-                "NYS": "red",
-                "NYT": "red",
-                "NY":  "gold",
-                "NSS": "darkgreen",
-                "NST": "darkgreen",
-                "NS":  "green"
-            },
+            "colors": [
+                {"clade": ["3C",   "gly"],    "color": "blue",      "priority": 1},
+                {"clade": ["3C",   "no-gly"], "color": "LightBlue", "priority": 2},
+                {"clade": ["3C2a", "gly"],    "color": "red",       "priority": 3},
+                {"clade": ["3C2a", "no-gly"], "color": "gold",      "priority": 4},
+                {"clade": ["3C3a", "gly"],    "color": "darkgreen", "priority": 5},
+                {"clade": ["3C3a", "no-gly"], "color": "green",     "priority": 6}
+            ],
             "output": "h3-glycosylation-158-159-160"
-        },
-
-        {
-            "comment": "************ OBSOLETE **************",
-            "DISABLED": true,
-            "subtype": "H3",
-            "title": "159\nF=Blue, Y=Red, S=Green, X=Magenta, unsequenced=grey",
-            "position": 159,
-            "colors": {
-                "F": "cornflowerblue",
-                "Y": "red",
-                "S": "green",
-                "X": "magenta"
-            },
-            "order": "XSYF",
-            "output": "h3-159"
         }
     ]
 }

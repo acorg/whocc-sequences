@@ -21,16 +21,10 @@ def main(args):
     setup = read_setup(args.setup[0])
     result = [[] for e in setup]
     for e in db.iterate_sequences():
-        index = find_setup_entry(setup, e)
-        if index is not None:
-            for clade in e["seq"].get("clades", []):
-                color = setup[index]["colors"].get(clade)   # color is a list: ["red", 2], the second element is priority (antigens with higher priority appear on top of the antigens with lower priority)
-                if color is not None:
-                    break
-            else:
-                color = setup[index]["colors"].get("")
-            if color is not None:
-                result[index].append([e["seq"].get("hi_name") or e["name"]] + color)
+        for index in find_setup_entries(setup, e):
+            color_entry = find_color_priority(colors=setup[index]["colors"], clades=e["seq"].get("clades", [""]))
+            if color_entry is not None:
+                result[index].append([e["seq"].get("hi_name") or e["name"], color_entry["color"], color_entry["priority"]])
     for index, r in enumerate(result):
         r.sort(key=lambda e: e[0])
         if args.format == "aa-subst-coloring-v3":
@@ -41,13 +35,24 @@ def main(args):
 
 # ----------------------------------------------------------------------
 
-def find_setup_entry(setup, e):
-    index = None
-    for i, setup_e in enumerate(setup):
-        if e["virus_type"] == setup_e["virus_type"] and (not setup_e.get("lineage") or e.get("lineage") == setup_e["lineage"]):
-            index = i
-            break
-    return index
+def find_color_priority(colors, clades):
+    for ce in colors:
+        if isinstance(ce["clade"], str):
+            if ce["clade"] in clades:
+                r = ce
+                break
+        else:
+            if all((c in clades) for c in ce["clade"]):
+                r = ce
+                break
+    else:
+        r = None
+    return r
+
+# ----------------------------------------------------------------------
+
+def find_setup_entries(setup, e):
+    return [i for i, setup_e in enumerate(setup) if e["virus_type"] == setup_e["virus_type"] and (not setup_e.get("lineage") or e.get("lineage") == setup_e["lineage"])]
 
 # ----------------------------------------------------------------------
 

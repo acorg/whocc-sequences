@@ -93,10 +93,10 @@ class SeqDB:
         else:
             data = {}
         self.names = data.get("1-names", {})
-        self.cdcids = data.get("2-cdcids", {})
+        # self.cdcids = data.get("2-cdcids", {})
 
     def save(self):
-        data = {"  version": "sequence-database-v1", "1-names": self.names, "2-cdcids": self.cdcids}
+        data = {"  version": "sequence-database-v1", "1-names": self.names} #, "2-cdcids": self.cdcids}
         module_logger.info('Writing {}'.format(self.path_to_db))
         with timeit("Written in"):
             open_file.write_json(self.path_to_db, data, indent=1, sort_keys=True)
@@ -219,7 +219,7 @@ class SeqDB:
 
     def report(self):
         print("SeqDB names:", len(self.names))
-        print("SeqDB cdcids:", len(self.cdcids))
+        # print("SeqDB cdcids:", len(self.cdcids))
 
         strange_names = [n for n in self.names if n.count("/") < 3]
         if strange_names:
@@ -307,7 +307,7 @@ class SeqDB:
                 entry = {"data": [], "virus_type": data["virus_type"], "dates": []}
                 self.names[name] = entry
             new = self._update_db_entry(entry, data)
-            self._update_cdcid(data)
+            # self._update_cdcid(data)
         else:
             module_logger.warning('Entry without name: {}'.format(data["lab_id"]))
             new = False
@@ -384,16 +384,16 @@ class SeqDB:
             entry_passage["nuc"] = data["sequence"]
             entry_passage["aa"] = aa
 
-    def _update_cdcid(self, data):
-        if data["lab"] == "CDC" and data.get("lab_id"):
-            if len(data["lab_id"]) >= 8:
-                existing = self.cdcids.get(data["lab_id"])
-                if existing is None:
-                    self.cdcids[data["lab_id"]] = data["name"]
-                elif existing != data["name"]:
-                    module_logger.warning('[CDCID] {!r} for another name: {!r} existing: {!r}'.format(data["lab_id"], data["name"], existing))
-            else:
-                module_logger.warning('[CDCID] too short (ignored) {!r} {!r}'.format(data["lab_id"], data["name"]))
+    # def _update_cdcid(self, data):
+    #     if data["lab"] == "CDC" and data.get("lab_id"):
+    #         if len(data["lab_id"]) >= 8:
+    #             existing = self.cdcids.get(data["lab_id"])
+    #             if existing is None:
+    #                 self.cdcids[data["lab_id"]] = data["name"]
+    #             elif existing != data["name"]:
+    #                 module_logger.warning('[CDCID] {!r} for another name: {!r} existing: {!r}'.format(data["lab_id"], data["name"], existing))
+    #         else:
+    #             module_logger.warning('[CDCID] too short (ignored) {!r} {!r}'.format(data["lab_id"], data["name"]))
 
     def align(self, sequence, entry_passage, data, db_entry, verbose=False):
         try:
