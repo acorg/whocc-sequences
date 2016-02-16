@@ -131,6 +131,17 @@ class SeqDB:
                 e["seq"] = seq
                 yield e
 
+    def iterate_sequences_aligned_with_virus_type(self, virus_type):
+        """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
+        for name, db_entry in self.names.items():
+            if db_entry["virus_type"] == virus_type:
+                e = {k: v for k,v in db_entry.items() if k != "data"}
+                e["name"] = name
+                for seq in db_entry["data"]:
+                    if seq.get("shift") is not None:
+                        e["seq"] = seq
+                        yield e
+
     def iterate_sequences_with_name(self, names):
         """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
         if isinstance(names, str):
