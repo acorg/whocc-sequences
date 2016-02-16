@@ -56,7 +56,7 @@ def clades_B_victoria(sequence, shift):
 # ----------------------------------------------------------------------
 
 def clades_H1(lineage, sequence, shift):
-    r = None
+    r = []
     # 84N+162N+216T - 6B.1, 84N - 6B.2, 152T+173I+501E - 6B.3
     seq_len = len(sequence)
     pos84 = 83 - shift
@@ -64,16 +64,16 @@ def clades_H1(lineage, sequence, shift):
         pos162 = 161 - shift
         pos216 = 215 - shift
         if seq_len > pos216 and sequence[pos162] == "N" and sequence[pos216] == "T":
-            r = ["6B.1"]
+            r.append("6B.1")
         else:
-            r = ["6B.2"]
-    else:
-        pos152 = 151 - shift
-        pos173 = 172 - shift
-        pos501 = 500 - shift
-        if seq_len > pos501 and sequence[pos152] == "T" and sequence[pos173] == "I" and sequence[pos501] == "E":
-            r = ["6B.3"]
-    return r
+            r.append("6B.2")
+
+    pos152 = 151 - shift
+    pos173 = 172 - shift
+    pos501 = 500 - shift
+    if seq_len > pos501 and sequence[pos152] == "T" and sequence[pos173] == "I" and sequence[pos501] == "E":
+        r.append("6B.3")
+    return r or None
 
 # ----------------------------------------------------------------------
 
