@@ -6,7 +6,7 @@
 Class to access sequence database
 """
 
-import os, sys, json
+import os, sys, json, re
 import logging; module_logger = logging.getLogger(__name__)
 from . import open_file, acmacs, amino_acids, utility
 from .utility import timeit
@@ -100,6 +100,25 @@ class SeqDB:
         module_logger.info('Writing {}'.format(self.path_to_db))
         with timeit("Written in"):
             open_file.write_json(self.path_to_db, data, indent=1, sort_keys=True)
+
+        # --------------------------------------------------
+
+    def find_name(self, name):
+        r = self.find_hi_name(name)
+        if not r:
+            n, p = self._split_name(name)
+            if n:
+                r = [e for e in self.iterate_sequences() if n in e["name"] and (not p or p in e["seq"]["passages"])]
+        return r
+
+    def find_hi_name(self, name):
+        for e in self.iterate_sequences():
+            if e["seq"].get("hi_name") == name:
+                r = [e]
+                break
+        else:
+            r = []
+        return r
 
         # --------------------------------------------------
 
@@ -465,6 +484,23 @@ class SeqDB:
         source = set(e[key] for e in data if e.get(key))
         module_logger.info('{} {}s to normalize'.format(len(source), key))
         return getattr(acmacs, "normalize_{}s".format(key))(source)
+
+    # ----------------------------------------------------------------------
+
+    sReYear = re.compile(r"^/(19[0-9][0-9]|20[0-2][0-9])$")
+
+    def _split_name(self, raw_name):
+        name = None
+        passage = None
+        if raw_name[:2] == "B/" or raw_name[:8] in ["A(H1N1)/", "A(H2N3)/"]:
+            fields = raw_name.split()
+            for name_parts in range(len(fields)):
+                if self.sReYear.match(fields[name_parts][-5:]):
+                    name = " ".join(fields[:name_parts + 1])
+                    passage = " ".join(fields[name_parts + 1:])
+                    break
+        return name, passage
+
 
 # ======================================================================
 ### Local Variables:
