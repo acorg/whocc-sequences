@@ -64,15 +64,15 @@ def clades_H1(lineage, sequence, shift):
         pos162 = 161 - shift
         pos216 = 215 - shift
         if seq_len > pos216 and sequence[pos162] == "N" and sequence[pos216] == "T":
-            r.append("6B.1")
-        else:
-            r.append("6B.2")
+            r.append("6B1")
+        # else:
+        #     r.append("6B.2")
 
     pos152 = 151 - shift
     pos173 = 172 - shift
     pos501 = 500 - shift
     if seq_len > pos501 and sequence[pos152] == "T" and sequence[pos173] == "I" and sequence[pos501] == "E":
-        r.append("6B.3")
+        r.append("6B2")
     return r or None
 
 # ----------------------------------------------------------------------
