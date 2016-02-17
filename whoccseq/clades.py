@@ -84,7 +84,7 @@ def clades_H3(lineage, sequence, shift):
     pos = 157 - shift
     if len(sequence) > (pos + 1) and pos > 0 and sequence[pos] == "N":
         if sequence[pos+1] == "F":
-            r.append("3C")
+            r.append("3C3")
         elif sequence[pos+1] == "Y":
             r.append("3C2a")
         elif sequence[pos+1] == "S":
