@@ -12,7 +12,7 @@ In reality sometimes N inserted. But in the most cases we have DQI at
 
 """
 
-import sys, os, re, traceback
+import sys, os, re, collections, pprint, traceback
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
@@ -20,53 +20,100 @@ import logging; module_logger = logging.getLogger(__name__)
 from whoccseq import seqdb
 from whoccseq import fasta as fasta_m, open_file
 
+# VIC: A:40    D:24-25 E:31 G:53    H:16-17 I:37-39 M:9     N:34-36 Y:15
+# YAM: A:41-42 D:28-29 E:28 G:51-52 H:14    I:33-34 M:10-11 N:30-33 Y:16-17
+
 # ----------------------------------------------------------------------
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
 
+    ecount = {a: {"VICTORIA": collections.defaultdict(int), "YAMAGATA": collections.defaultdict(int)} for a in "ADEGHIMNY"}
+    no_tn169 = set()
+    no_dqi185 = set()
+
     for name, e1 in db.names.items():
         if e1["virus_type"] == "B":
             for e2 in e1["data"]:
                 shift = e2.get("shift")
-                if shift is not None:
-                    l165 = lineage_by_165(e2)
-                    l185 = lineage_by_185(e2)
-                    if l165 == l185:
-                        lineage = l165
-                    elif l185 is not None:
-                        lineage = l185
-                    elif l165 is not None:
-                        lineage = l165
+                if shift is not None and (len(e2["aa"]) - shift) > 200:
+                    name = e2.get("hi_name") or "{} {}".format(name, e2.get("passages", ""))
+                    if shift <= 0:
+                        aa = e2["aa"][-shift:]
+                    else:
+                        aa = ("X" * shift) + e2["aa"]
+                    # l165 = lineage_by_165(aa, name)
+                    l_tn169 = lineage_by_tn169(aa, name, no_tn169)
+                    l_dqi185 = lineage_by_dqi185(aa, name, no_dqi185)
+                    if l_tn169 == l_dqi185:
+                        lineage = l_tn169
+                    elif l_dqi185 is not None:
+                        lineage = l_dqi185
+                    elif l_tn169 is not None:
+                        lineage = l_tn169
                     else:
                         lineage = None
                     if lineage != e1.get("lineage") and e1.get("lineage") is not None:
-                        print("{} {} vs {} (detected by seq) for {}".format(e2["aa"][164:190], e1.get("lineage"), lineage, e2.get("hi_name") or "{} {}".format(name, e2.get("passages", ""))))
+                        print("{} {} vs {} (detected by seq) for {}".format(e2["aa"][164:190], e1.get("lineage"), lineage, name))
+
+                    if lineage and e2["shift"] <= 0 and len(e2["aa"]) > 500:
+                        c = {a: e2["aa"][-e2["shift"]:].count(a) for a in ecount}
+                        if lineage == "VICTORIA" and c["E"] == 28:
+                            print("VIC E:", c, name)
+                        for a, cc in c.items():
+                            ecount[a][lineage][cc] += 1
+
+    print("No TN169\n  " + "\n  ".join(sorted(no_tn169)))
+    print("No DQI185\n  " + "\n  ".join(sorted(no_dqi185)))
+    print("No TN169 nor DQI185\n  " + "\n  ".join(sorted(no_dqi185 & no_tn169)))
+    #pprint.pprint(ecount)
+
     # if args.save:
     #     db.save()
 
 # ----------------------------------------------------------------------
 
-def lineage_by_165(e2):
-    pos = 164 - e2["shift"]
-    lineage = None
-    if len(e2["aa"]) > pos:
-        if e2["aa"][pos] == "K":
-            lineage = "VICTORIA"
-        elif e2["aa"][pos] == "N":
-            lineage = "YAMAGATA"
+# def lineage_by_165(aa, name):
+#     pos = 164
+#     lineage = None
+#     if len(aa) > pos:
+#         if aa[pos] == "K":
+#             lineage = "VICTORIA"
+#         elif aa[pos] == "N":
+#             lineage = "YAMAGATA"
+#     return lineage
+
+def lineage_by_tn169(aa, name, not_found):
+    # TN: 169-170 - yam, 170-171 - vic
+    pos = aa.find("TN", 165, 180)
+    if pos == 168:
+        lineage = "YAMAGATA"
+    elif pos == 169:
+        lineage = "VICTORIA"
+    elif pos < 0:
+        # module_logger.warning('No TN169: (165-181):{} {}'.format(aa[164:181], name))
+        not_found.add(name)
+        lineage = None
+    else:
+        module_logger.warning('TN169 at {}: (165-181):{} {}'.format(pos + 1, aa[164:181], name))
+        lineage = None
     return lineage
 
 # ----------------------------------------------------------------------
 
-def lineage_by_185(e2):
-    pos = 184 - e2["shift"]
-    lineage = None
-    if len(e2["aa"]) > (pos + 3):
-        if e2["aa"][pos+1:pos+4] == "DQI":
-            lineage = "VICTORIA"
-        elif e2["aa"][pos:pos+3] == "DQI":
-            lineage = "YAMAGATA"
+def lineage_by_dqi185(aa, name, not_found):
+    pos = aa.find("DQI", 165, 190)
+    if pos == 185:
+        lineage = "VICTORIA"
+    elif pos == 184:
+        lineage = "YAMAGATA"
+    elif pos < 0:
+        # module_logger.warning('No DQI185: (180-190):{} {}'.format(aa[179:190], name))
+        not_found.add(name)
+        lineage = None
+    else:
+        module_logger.warning('DQI185 at {}: (180-190):{} {}'.format(pos + 1, aa[179:190], name))
+        lineage = None
     return lineage
 
 # ----------------------------------------------------------------------
