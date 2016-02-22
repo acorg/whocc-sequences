@@ -2,7 +2,7 @@
 # -*- Python -*-
 
 """
-Scans sequences.
+reports amino-acids at each position for the given flu type
 """
 
 import sys, os
@@ -17,26 +17,22 @@ from whoccseq import seqdb
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
 
-    if args.pos is not None and args.len is not None:
-        r = {}
-        for e in db.iterate_sequences_aligned_with_virus_type(args.virus_type):
-            pos = args.pos - 1 - e["seq"]["shift"]
-            if len(e["seq"]["aa"]) > (pos + args.len):
-                s = e["seq"]["aa"][pos:pos + args.len]
-                if s in r:
-                    r[s] += 1
-                else:
-                    r[s] = 1
-        print("\n".join("{} {:3d}".format(ss, r[ss]) for ss in sorted(r)))
+    aa_at_pos = {}
+    for e in db.iterate_sequences_aligned_with_virus_type(args.virus_type):
+        shift = e["seq"]["shift"]
+        l = len(e["seq"]["aa"]) - max(-shift, 0)
+        for pos in range(l):
+            aa_at_pos.setdefault(pos + 1, set()).add(e["seq"]["aa"][pos - shift] if pos >= shift else "X")
+
+    print("positions:", len(aa_at_pos), "max aa per pos:", max(len(v) for v in aa_at_pos.values()), "average aa per pos:", sum(len(v) for v in aa_at_pos.values()) / len(aa_at_pos))
+    print("\n".join("{:3d} {}".format(pos, "".join(sorted(aa_at_pos[pos]))) for pos in sorted(aa_at_pos)))
 
 # ----------------------------------------------------------------------
 
 try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--flu', action='store', dest='virus_type', default='B', help='Scan this type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
-    parser.add_argument('--pos', action='store', dest='pos', type=int, default=None, help='Report subsequences at given pos.')
-    parser.add_argument('--len', action='store', dest='len', type=int, default=None, help='Report subsequences at given pos with given length.')
+    parser.add_argument('--flu', action='store', dest='virus_type', default='A(H3N2)', help='Scan this type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()

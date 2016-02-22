@@ -133,6 +133,7 @@ class SeqDB:
 
     def iterate_sequences_aligned_with_virus_type(self, virus_type):
         """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
+        virus_type, _ = utility.fix_virus_type_lineage(virus_type)
         for name, db_entry in self.names.items():
             if db_entry["virus_type"] == virus_type:
                 e = {k: v for k,v in db_entry.items() if k != "data"}

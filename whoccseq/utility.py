@@ -17,7 +17,7 @@ def timeit(name):
 
 # ----------------------------------------------------------------------
 
-def fix_virus_type_lineage(vt, lineage):
+def fix_virus_type_lineage(vt, lineage=None):
     if vt:
         vt = vt.upper()
         if vt == "H1":

@@ -43,18 +43,6 @@ def find_common(aa, min_common_in_group):
 
 # ----------------------------------------------------------------------
 
-def fix_virus_type(vt):
-    vt = vt.upper()
-    if vt == "H1":
-        vt = "A(H1N1)"
-    elif vt == "H3":
-        vt = "A(H3N2)"
-    if vt not in ["B", "A(H1N1)", "A(H3N2)"]:
-        raise ValueError("Unrecognized virus type: {}".format(vt))
-    return vt
-
-# ----------------------------------------------------------------------
-
 try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
