@@ -57,7 +57,7 @@ def clades_B_victoria(sequence, shift):
 
 def clades_H1(lineage, sequence, shift):
     r = []
-    # 84N+162N+216T - 6B.1, 84N - 6B.2, 152T+173I+501E - 6B.3
+    # 84N+162N+216T - 6B.1, 152T+173I+501E - 6B.2
     seq_len = len(sequence)
     pos84 = 83 - shift
     if seq_len > pos84 and pos84 > 0 and sequence[pos84] == "N":
