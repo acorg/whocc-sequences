@@ -79,20 +79,30 @@ def clades_H1(lineage, sequence, shift):
 
 def clades_H3(lineage, sequence, shift):
     r = []
+    seq_len = len(sequence)
 
-    # 158N, 159F -> 3C, 159Y -> 3c2a, 159S -> 3c3a
-    pos = 157 - shift
-    if len(sequence) > (pos + 1) and pos > 0 and sequence[pos] == "N":
-        if sequence[pos+1] == "F":
+    # 158N, 159F -> 3C, 159Y -> 3c2a, 159S -> 3c3a, 62K+83R+261Q -> 3C3b.
+    pos158 = 157 - shift
+    pos159 = 158 - shift
+    if seq_len > pos159 and pos158 > 0 and sequence[pos158] == "N":
+        if sequence[pos159] == "F":
             r.append("3C3")
-        elif sequence[pos+1] == "Y":
+        elif sequence[pos159] == "Y":
             r.append("3C2a")
-        elif sequence[pos+1] == "S":
+        elif sequence[pos159] == "S":
             r.append("3C3a")
+
+    pos62 = 61 - shift
+    pos83 = 82 - shift
+    pos261 = 260 - shift
+    if seq_len > pos261 and sequence[pos159] == "F" and sequence[pos83] == "R" and sequence[pos261] == "Q": # and sequence[pos62] == "K"
+        r.append("3C3b")
+    # if seq_len > pos261 and sequence[pos62] == "K" and sequence[pos83] == "R" and sequence[pos261] == "Q":
+    #     r.append("3C3b?")
 
     # 160S -> gly, 160T -> gly, 160x -> no gly
     pos = 159 - shift
-    if len(sequence) > pos and pos > 0 and sequence[pos] in "ST":
+    if seq_len > pos and pos > 0 and sequence[pos] in "ST":
         r.append("gly")
     else:
         r.append("no-gly")

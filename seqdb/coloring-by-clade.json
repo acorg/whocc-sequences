@@ -37,11 +37,12 @@
 
         {
             "virus_type": "A(H3N2)",
-            "title": "{lab} 159\n3C2/3C3=Blue, 3C2a=Red, 3C3a=Green, unsequenced=Grey",
+            "title": "{lab} 159\n3C2/3C3=Blue, 3C2a=Red, 3C3a=Green, 3C3b=DarkBlue, unsequenced=Grey",
             "colors": [
-                {"clade": "3C",   "color": "cornflowerblue", "priority": 1},
                 {"clade": "3C2a", "color": "red",            "priority": 2},
-                {"clade": "3C3a", "color": "green",          "priority": 3}
+                {"clade": "3C3a", "color": "green",          "priority": 3},
+                {"clade": "3C3b", "color": "blue",           "priority": 4},
+                {"clade": "3C3",  "color": "cornflowerblue", "priority": 1, "comment": "must be after 3C3a, 3C3b"}
             ],
             "output": "h3-clade"
         },
