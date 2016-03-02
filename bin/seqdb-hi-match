@@ -271,11 +271,13 @@ class HIDB:
     def __init__(self, filename):
         module_logger.info('Reading {}'.format(filename))
         self.db = open_file.read_json(filename)
+        if self.db.get("  version") != "whocc-antigens-sera-v2":
+            raise ValueError("Unsupported hidb version: {}".format(self.db.get("  version")))
 
     def find_antigen_by_name(self, virus_type, lab, name):
         r = [None, None]
         for vt in self._virus_types(lab, virus_type):
-            r = [self.db[lab][vt]["antigens"]["name"].get(name), vt] # return vt to detect H1 lineage
+            r = [self.db[lab][vt]["antigens"]["n"].get(name), vt] # return vt to detect H1 lineage
             if r:
                 break
         return r
@@ -313,8 +315,8 @@ try:
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--reset', action='store_true', dest='reset', default=False, help='Remove previous matching data.')
     parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
-    parser.add_argument('--hidb', action='store', dest='path_to_hidb', default='~/WHO/whocc-antigen-names/ALL.json.xz', help='Path to HI name database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--hidb', action='store', dest='path_to_hidb', default='~/WHO/ALL.json.xz', help='Path to HI name database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
     exit_code = main(args)

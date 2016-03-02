@@ -17,11 +17,11 @@ from whoccseq import fasta as fasta_m, fasta_old, acmacs
 
 def main(args):
     acmacs.api(args.acmacs_url)
-    db = seqdb.SeqDB(os.path.expanduser(args.path_to_db))
-    if args.input:
-        files = [make_file_entry(f) for f in args.input]
-    else:
-        files = collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))
+    db = seqdb.SeqDB(os.path.expanduser(args.path_to_db), try_to_load=False)
+    # if args.input:
+    #     files = [make_file_entry(f) for f in args.input]
+    # else:
+    files = collect_files(os.path.expandvars(os.path.expanduser(args.source_dir)))
     # read_all_files_update_db(db, files)
     read_file_one_by_one_update_db(db, files)
     db.report()
@@ -87,7 +87,7 @@ def collect_files(source_dir):
 try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('input', nargs="*", help='Fasta files to process.')
+    # parser.add_argument('input', nargs="*", help='Fasta files to process.')
     parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')

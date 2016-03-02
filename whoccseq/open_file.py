@@ -52,11 +52,11 @@ def read_or_get_binary(data, try_reading_from_file=True):
 
 def write_json(filename, data, indent=None, sort_keys=False, backup=True):
     if indent is None:
-        separators=[',', ':']
+        s = json.dumps(data, separators=[',', ':'], indent=indent, sort_keys=sort_keys)
     else:
-        separators=[',', ': ']
+        s = json_dumps(data, indent=indent, indent_increment=indent)
     with open_for_writing_binary(filename, backup=backup) as fd:
-        fd.write(json.dumps(data, separators=separators, indent=indent, sort_keys=sort_keys).encode('utf-8'))
+        fd.write(s.encode('utf-8'))
 
 # ======================================================================
 
@@ -64,6 +64,47 @@ def read_json(filename):
     return json.loads(open_for_reading_text(filename).read())
 
 # ======================================================================
+
+def json_dumps(data, indent=2, indent_increment=2):
+    """More compact dumper with wide lines."""
+
+    def simple(d):
+        r = True
+        if isinstance(d, dict):
+            r = not any(isinstance(v, (list, tuple, set, dict)) for v in d.values())
+        elif isinstance(d, (tuple, list)):
+            r = not any(isinstance(v, (list, tuple, set, dict)) for v in d)
+        return r
+
+    def end(symbol, indent):
+        if indent > indent_increment:
+            r = "{:{}s}{}".format("", indent - indent_increment, symbol)
+        else:
+            r = symbol
+        return r
+
+    r = []
+    if simple(data):
+        if isinstance(data, set):
+            r.append(json.dumps(sorted(data), sort_keys=True))
+        else:
+            r.append(json.dumps(data, sort_keys=True))
+    else:
+        if isinstance(data, dict):
+            r.append("{")
+            for no, k in enumerate(sorted(data), start=1):
+                comma = "," if no < len(data) else ""
+                r.append("{:{}s}{}: {}{}".format("", indent, json.dumps(k), json_dumps(data[k], indent + indent_increment, indent_increment), comma))
+            r.append(end("}", indent))
+        elif isinstance(data, (tuple, list)):
+            r.append("[")
+            for no, v in enumerate(data, start=1):
+                comma = "," if no < len(data) else ""
+                r.append("{:{}s}{}{}".format("", indent, json_dumps(v, indent + indent_increment, indent_increment), comma))
+            r.append(end("]", indent))
+    return "\n".join(r)
+
+# ----------------------------------------------------------------------
 
 def open_for_writing_binary(filename, compressed=None, backup=True, makedirs=True):
     """Opens binary file for writing. If compressed is None, autodetects if data should be compressed by filename suffix."""
