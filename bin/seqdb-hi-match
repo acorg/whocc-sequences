@@ -5,13 +5,13 @@
 Updates seqdb with matching HI names
 """
 
-import sys, os, re, traceback, pprint, datetime
+import sys, os, re, traceback, pprint, datetime, collections
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
 from whoccseq import seqdb
-from whoccseq import fasta as fasta_m, open_file
+from whoccseq import fasta as fasta_m, open_file, utility
 
 # ----------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ STAT_WHOCC_ANNUAL_REPORT = [["{}0201".format(year), "{}0201".format(year + 1), 0
 # ----------------------------------------------------------------------
 
 def main(args):
-    db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+        db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
     if args.reset:
         db.reset_hi_data()
     hi = HIDB(os.path.expandvars(os.path.expanduser(args.path_to_hidb)))
@@ -35,54 +35,51 @@ def main(args):
 # ----------------------------------------------------------------------
 
 def match(db, hi):
-    for name, e1 in db.names.items():
-        virus_type = e1["virus_type"]
-        lab_to_entries = {}
-        for e2 in e1["data"]:
-            if e2.get("gene", "HA") == "HA":
-                for lab in e2["labs"]:
-                    lab_to_entries.setdefault(lab, []).append(e2)
+    for e1 in db.data:
+        name = e1["N"]
+        virus_type = e1["v"]
+        lab_to_entries = collections.defaultdict(list)
+        for e2 in e1["s"]:
+            if e2.get("g", "HA") == "HA":
+                for lab in e2["l"]:
+                    lab_to_entries[lab].append(e2)
         for lab, e2l in lab_to_entries.items():
-            hi_entry, vt = hi.find_antigen_by_name(virus_type, lab, name)
+            hi_entry = hi.find_antigen_by_name(name)
             if not hi_entry and lab == "CDC":
                 for e2 in e2l:
-                    for cdcid in e2["labs"][lab]:
-                        hi_entry, vt = hi.find_antigen_by_cdcid(virus_type, cdcid)
+                    for cdcid in e2["l"][lab]:
+                        hi_entry = hi.find_antigen_by_cdcid(cdcid)
                         if hi_entry:
                             break
                     if hi_entry:
                         break
             if hi_entry:
-                # matches = match_passages(set().union(*(set(e2["passages"]) for e2 in e2l)) or [""], list(hi_entry["passage_table_name"]))
-                matches = match_passages(name, [e2["passages"] or [""] for e2 in e2l], list(hi_entry["passage_table_name"]))
+                try:
+                    matches = match_passages(name, [e2["p"] or [""] for e2 in e2l], [(v3, e3.get("p", "")) for v3, e3 in hi_entry["v"].items()])
+                except:
+                    module_logger.error('hi_entry {}'.format(hi_entry))
+                    module_logger.error('e2l {}'.format(e2l))
+                    raise
                 if matches:
-                    apply_matches(matches, name, e1, e2l, hi_entry, vt)
-                # print(name, lab, list(hi_entry["passage_table_name"]), "----", [e2["passages"] for e2 in e2l])
+                    apply_matches(matches, name, e1, e2l, hi_entry, virus_type, hi)
 
 # ----------------------------------------------------------------------
 
-def apply_matches(matches, name, db_entry, seq_entries, hi_entry, vt):
+def apply_matches(matches, name, db_entry, seq_entries, hi_entry, vt, hi):
     global STAT_WHOCC_ANNUAL_REPORT
     for m in matches:
         for seq_entry in seq_entries:
-            if m[0] in seq_entry["passages"] or (m[0] == "" and not seq_entry["passages"]):
-                hi_passage_table_name = hi_entry["passage_table_name"]
-                seq_entry["hi_name"] = hi_passage_table_name[m[1]]["name"]
+            if m[0] in seq_entry["p"] or (m[0] == "" and not seq_entry["p"]):
+                seq_entry["h"] = "{} {}".format(name, m[1])
                 if vt == "B":
-                    update_b_lineage(name=name, hi_name=seq_entry["hi_name"], db_entry=db_entry, hi_entry=hi_entry)
+                    update_b_lineage(name=name, hi_name=seq_entry["h"], db_entry=db_entry, hi_entry=hi_entry)
                 elif vt[:2] == "H1":
-                    update_h1_lineage(name=name, hi_name=seq_entry["hi_name"], db_entry=db_entry, vt=vt)
-                update_date(name=name, hi_name=seq_entry["hi_name"], db_entry=db_entry, hi_entry=hi_entry)
-
-                # # STAT_WHOCC_ANNUAL_REPORT
-                # for table in hi_passage_table_name[m[1]]["tables"]:
-                #     for es in STAT_WHOCC_ANNUAL_REPORT:
-                #         if es[0] <= table and es[1] > table:
-                #             es[2] += 1
+                    update_h1_lineage(name=name, hi_name=seq_entry["h"], db_entry=db_entry, vt=vt)
+                update_date(name=name, hi_name=seq_entry["h"], db_entry=db_entry, hi_entry=hi_entry)
 
                 # use just the most recent table to avoid counting twice
-                if hi_passage_table_name[m[1]]["tables"]:
-                    table = sorted(hi_passage_table_name[m[1]]["tables"])[-1]
+                if hi_entry["v"][m[1]]["t"]:
+                    table = hi.db["tables"][hi_entry["v"][m[1]]["t"][-1]]["date"]
                     for es in STAT_WHOCC_ANNUAL_REPORT:
                         if es[0] <= table and es[1] > table:
                                 es[2] += 1
@@ -91,14 +88,8 @@ def apply_matches(matches, name, db_entry, seq_entries, hi_entry, vt):
 # ----------------------------------------------------------------------
 
 def update_b_lineage(name, hi_name, db_entry, hi_entry):
-    if hi_entry.get("lineage"):
-        if len(hi_entry["lineage"]) == 1:
-            lineage = list(hi_entry["lineage"])[0]
-        else:
-            # multiple lineages, use one from the most recent table
-            lineage = sorted(hi_entry["lineage"], key=lambda l: sorted(hi_entry["lineage"][l])[-1])[-1]
-            # module_logger.warning('Multiple lineages for {} {}: {}'.format(name, hi_name, hi_entry["lineage"]))
-        update_lineage(name=name, hi_name=hi_name, db_entry=db_entry, lineage=lineage)
+    if hi_entry.get("l"):
+        update_lineage(name=name, hi_name=hi_name, db_entry=db_entry, lineage=hi_entry["l"])
 
 # ----------------------------------------------------------------------
 
@@ -114,34 +105,34 @@ def update_h1_lineage(name, hi_name, db_entry, vt):
 # ----------------------------------------------------------------------
 
 def update_lineage(name, hi_name, db_entry, lineage):
-    if not db_entry.get("lineage"):
-        db_entry["lineage"] = lineage
-    elif db_entry["lineage"] != lineage:
-        module_logger.warning('Lineage mismatch for {} {}: seq:{} hi:{}'.format(name, hi_name, db_entry["lineage"], lineage))
+    if not db_entry.get("l"):
+        db_entry["l"] = lineage
+    elif db_entry["l"] != lineage:
+        module_logger.warning('Lineage mismatch for {} {}: seq:{} hi:{}'.format(name, hi_name, db_entry["l"], lineage))
 
 # ----------------------------------------------------------------------
 
 def update_date(name, hi_name, db_entry, hi_entry):
-    for date in hi_entry.get("date", []):
-        if date not in db_entry["dates"]:
-            db_entry["dates"].append(date)
-    db_entry["dates"].sort()
+    for date in hi_entry.get("d", []):
+        if date not in db_entry["d"]:
+            db_entry["d"].append(date)
+    db_entry["d"].sort()
 
 # ----------------------------------------------------------------------
 
-def match_passages(name, seq_passages, hi_passages):
-    if len(seq_passages) == 1 and len(hi_passages) == 1:
+def match_passages(name, seq_passages, hi_variants_passages):
+    if len(seq_passages) == 1 and len(hi_variants_passages) == 1:
         # just one possibility, always matches regardless of actual passages
-        r = [[seq_passages[0][0], hi_passages[0]]]
+        r = [[seq_passages[0][0], hi_variants_passages[0][0]]]
     else:
         # print("{:50s} {:60s} {}".format(name, repr(seq_passages), repr(hi_passages)))
         seq_left = seq_passages[:]
-        hi_left = hi_passages[:]
+        hi_left = hi_variants_passages[:]
         r = []
         while seq_left and hi_left:
-            levels = sorted(([match_level(seq_p, hi_p), seq_p, hi_p] for seq_group in seq_left for seq_p in seq_group for hi_p in hi_left), key=lambda e: e[0])
+            levels = sorted(([match_level(seq_p, hi_p[1]), seq_p, hi_p] for seq_group in seq_left for seq_p in seq_group for hi_p in hi_left), key=lambda e: e[0])
             # print("? {:48s} {:60s} {}".format(name, repr(seq_left), levels), file=sys.stderr)
-            r.append(levels[0][1:])
+            r.append([levels[0][1], levels[0][2][0]])
             seq_left = [e for e in seq_left if levels[0][1] not in e]
             hi_left.remove(levels[0][2])
     return r
@@ -225,87 +216,36 @@ def close_passage_type(sp, hp):
 
 # ----------------------------------------------------------------------
 
-
-    # if not seq_passages:
-    #     if "" in hi_passages:
-    #         r = ["", ""]
-    #     else:
-    #         r = ["", hi_passages[0]]      # nothing to compare, just take the first
-    # elif len(seq_passages) == 1 and len(hi_passages) == 1:
-    #     r = [(list(seq_passages or [""])[0], hi_passages[0])]
-    # else:
-    #     sp_done = []
-    #     hp_done = []
-
-    #     def make(sp, hp):
-    #         sp_done.append(sp)
-    #         hp_done.append(hp)
-    #         return (sp, hp)
-
-    #     r = [make(sp, hp) for sp in (seq_passages or [""]) for hp in hi_passages if sp and hp and sp == hp]
-    #     if len(sp_done) < len(seq_passages) and len(hp_done) < len(hi_passages):
-    #         sp_level_hp = {}
-    #         for sp in seq_passages:
-    #             for hp in hi_passages:
-    #                 if sp not in sp_done and hp not in hp_done:
-    #                     l = level(sp, hp)
-    #                     sp_level_hp.setdefault(sp, {}).setdefault(l, []).append(hp)
-    #         ambiguous = any(len(lv) > 1 for spv in sp_level_hp.values() for lv in spv.values())
-    #         if not ambiguous:
-    #             print("_", sp_level_hp)
-    #             sp_by_levels = sorted(sp_level_hp, key=lambda sp_e: min(sp_level_hp[sp_e]))
-    #             for sp in sp_by_levels:
-    #                 if sp not in sp_done:
-    #                     hp = sp_level_hp[sp][min(sp_level_hp[sp])][0]
-    #                     if hp not in hp_done:
-    #                         r.append(make(sp, hp))
-    #             print(r)
-    #         else:
-    #             print("A", sp_level_hp)
-    # return r
-
-# ----------------------------------------------------------------------
-
 class HIDB:
 
     def __init__(self, filename):
-        module_logger.info('Reading {}'.format(filename))
-        self.db = open_file.read_json(filename)
+        with utility.timeit('Reading {}'.format(filename)):
+            self.db = open_file.read_json(filename)
         if self.db.get("  version") != "whocc-antigens-sera-v2":
             raise ValueError("Unsupported hidb version: {}".format(self.db.get("  version")))
+        self.antigens = self.db["antigens"]   # note: they are sorted by "n"
 
-    def find_antigen_by_name(self, virus_type, lab, name):
-        r = [None, None]
-        for vt in self._virus_types(lab, virus_type):
-            r = [self.db[lab][vt]["antigens"]["n"].get(name), vt] # return vt to detect H1 lineage
-            if r:
-                break
-        return r
+    def find_antigen_by_cdcid(self, cdcid):
+        cdcid = "CDC#{}".format(cdcid)
+        for antigen in self.antigens:
+            if cdcid in antigen["i"]:
+                return antigen
+        return None
 
-    def find_antigen_by_cdcid(self, virus_type, cdcid):
-        r = [None, None]
-        for vt in self._virus_types("CDC", virus_type):
-            n = self.db["CDC"][vt]["antigens"]["lab_id"].get("CDC#{}".format(cdcid))
-            if n:
-                if len(n) > 1:
-                    module_logger.warning('Multiple names for cdcid {} {}: {}'.format(virus_type, cdcid, n))
-                r = [self.db["CDC"][vt]["antigens"]["name"].get(n[0]), vt]
-                break
-        return r
-
-    def _virus_types(self, lab, virus_type):
-        if virus_type == "A(H1N1)":
-            if "H1SEAS" in self.db[lab]:
-                r = ["H1PDM", "H1SEAS"]
+    # Adoption if python 3.5 bisect module function
+    def find_antigen_by_name(self, name):
+        lo = 0
+        hi = len(self.antigens)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            mid_name = self.antigens[mid]["n"]
+            if mid_name == name:
+                return self.antigens[mid]
+            if mid_name < name:
+                lo = mid + 1
             else:
-                r = ["H1PDM"]
-        elif virus_type == "A(H3N2)":
-            r = ["H3"]
-        elif virus_type == "B":
-            r = ["B"]
-        else:
-            raise ValueError("Unrecognized virus_type {}".format(virus_type))
-        return r
+                hi = mid
+        return None
 
 # ----------------------------------------------------------------------
 
@@ -316,10 +256,11 @@ try:
     parser.add_argument('--reset', action='store_true', dest='reset', default=False, help='Remove previous matching data.')
     parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
-    parser.add_argument('--hidb', action='store', dest='path_to_hidb', default='~/WHO/ALL.json.xz', help='Path to HI name database.')
+    parser.add_argument('--hidb', action='store', dest='path_to_hidb', default='~/WHO/hidb.json.xz', help='Path to HI name database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1

@@ -89,17 +89,16 @@ class SeqDB:
 
     def load(self):
         if os.path.isfile(self.path_to_db):
-            module_logger.info('Reading {}'.format(os.path.realpath(self.path_to_db)))
-            data = open_file.read_json(self.path_to_db)
-            if data.get("  version") != "sequence-database-v2":
-                raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
+            with timeit('Reading {}'.format(os.path.realpath(self.path_to_db))):
+                data = open_file.read_json(self.path_to_db)
+                if data.get("  version") != "sequence-database-v2":
+                    raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
         else:
             data = {}
         self.data = data.get("data", [])
 
     def save(self):
-        module_logger.info('Writing {}'.format(self.path_to_db))
-        with timeit("Written in"):
+        with timeit("Writing {}".format(self.path_to_db)):
             open_file.write_json(self.path_to_db, {"  version": "sequence-database-v2", "data": self.data}, indent=1, sort_keys=True)
 
         # --------------------------------------------------
