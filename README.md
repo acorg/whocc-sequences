@@ -3,7 +3,7 @@ Set of tools to keep WHO CCs flu sequence database (H1, H3, B) and perform vario
 
 # Process
 
-    seqdb-init
+    seqdb-create
     seqdb-hi-match
     seqdb-clades
 
