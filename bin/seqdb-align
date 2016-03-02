@@ -10,7 +10,7 @@ if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
-from whoccseq import seqdb, clades as clades_m, open_file, fasta as fasta_m
+from whoccseq import seqdb, clades as clades_m, open_file, fasta as fasta_m, utility
 
 # ----------------------------------------------------------------------
 
@@ -26,7 +26,8 @@ def main(args):
     else:
         it = db.iterate_sequences_with_name(args.names)
     for e in it:
-        db.align(sequence=e["seq"]["aa"], entry_passage=e["seq"], data=e, db_entry=e, verbose=True)
+        e.align()
+
         # pprint.pprint(e["seq"])
     db.report()
     if args.save:
@@ -39,11 +40,12 @@ try:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('names', nargs='+', help='Names to align, use "all" to align all, "not-aligned" to align not yet aligned.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1

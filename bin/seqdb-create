@@ -11,7 +11,7 @@ sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
 from whoccseq import seqdb
-from whoccseq import fasta as fasta_m, fasta_old, acmacs
+from whoccseq import fasta as fasta_m, fasta_old, acmacs, utility
 
 # ----------------------------------------------------------------------
 
@@ -96,7 +96,8 @@ try:
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1

@@ -25,6 +25,41 @@ class Exclude (Exception): pass
 
 # ----------------------------------------------------------------------
 
+class Seq:
+
+    def __init__(self, db_entry, seq):
+        self.db_entry = db_entry
+        self.seq = seq
+
+    def name(self):
+        return self.db_entry["N"]
+
+    def shift(self):
+        return self.seq["s"]
+
+    def aa(self):
+        return self.seq["a"]
+
+    def aa_len(self):
+        return len(self.aa()) - max(- self.shift(), 0)
+
+    def aa_at_pos0(self, pos):
+        """Returns aa at pos, pos is counted starting with 0"""
+        shift = self.shift()
+        if pos >= shift:
+            return self.aa()[pos - shift]
+        else:
+            return "X"
+
+    def aa_at_pos(self, pos):
+        """Returns aa at pos, pos is counted starting with 1"""
+        return self.aa_at_pos0(pos - 1)
+
+    def align(self):
+        SeqDB.align(sequence=self.aa(), entry_passage=self.seq, data=None, db_entry=self.db_entry, verbose=True)
+
+# ----------------------------------------------------------------------
+
 # self.data is list of dicts sorted by "N":
 # {
 #     "N": <name>,
@@ -122,52 +157,39 @@ class SeqDB:
 
         # --------------------------------------------------
 
-    # def iterate_sequences(self):
-    #     """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
-    #     for name, db_entry in self.names.items():
-    #         e = {k: v for k,v in db_entry.items() if k != "data"}
-    #         e["name"] = name
-    #         for seq in db_entry["data"]:
-    #             e["seq"] = seq
-    #             yield e
+    def iterate_sequences(self):
+        """Yields Seq"""
+        for db_entry in self.data:
+            for seq in db_entry["s"]:
+                yield Seq(db_entry, seq)
 
-    # def iterate_sequences_aligned_with_virus_type(self, virus_type):
-    #     """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
-    #     virus_type, _ = utility.fix_virus_type_lineage(virus_type)
-    #     for name, db_entry in self.names.items():
-    #         if db_entry["virus_type"] == virus_type:
-    #             e = {k: v for k,v in db_entry.items() if k != "data"}
-    #             e["name"] = name
-    #             for seq in db_entry["data"]:
-    #                 if seq.get("shift") is not None:
-    #                     e["seq"] = seq
-    #                     yield e
+    def iterate_sequences_aligned_with_virus_type(self, virus_type):
+        """Yields Seq"""
+        virus_type, _ = utility.fix_virus_type_lineage(virus_type)
+        for db_entry in self.data:
+            if db_entry["v"] == virus_type:
+                for seq in db_entry["s"]:
+                    if seq.get("s") is not None:
+                        yield Seq(db_entry, seq)
 
-    # def iterate_sequences_with_name(self, names):
-    #     """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
-    #     if isinstance(names, str):
-    #         names = [names]
-    #     for name in names:
-    #         db_entry = self.names.get(name)
-    #         if db_entry:
-    #             e = {k: v for k,v in db_entry.items() if k != "data"}
-    #             e["name"] = name
-    #             for seq in db_entry["data"]:
-    #                 e["seq"] = seq
-    #                 yield e
-    #         else:
-    #             module_logger.error('{!r} not found in the database'.format(name))
+    def iterate_sequences_with_name(self, names):
+        """Yields Seq"""
+        if isinstance(names, str):
+            names = [names]
+        for name in names:
+            db_entry = self.find_by_name(name)
+            if db_entry:
+                for seq in db_entry["s"]:
+                    yield Seq(db_entry, seq)
+            else:
+                module_logger.error('{!r} not found in the database'.format(name))
 
-    # def iterate_sequences_not_aligned(self):
-    #     """Yields {"name":, "virus_type":, "lineage":, "dates":, "seq": <"data" entry>}"""
-    #     for name, db_entry in self.names.items():
-    #         not_aligned = [seq for seq in db_entry["data"] if "shift" not in seq]
-    #         if not_aligned:
-    #             e = {k: v for k,v in db_entry.items() if k != "data"}
-    #             e["name"] = name
-    #             for seq in not_aligned:
-    #                 e["seq"] = seq
-    #                 yield e
+    def iterate_sequences_not_aligned(self):
+        """Yields Seq"""
+        for db_entry in self.data:
+            for seq in db_entry["s"]:
+                if "s" not in seq:
+                    yield Seq(db_entry, seq)
 
     #     # --------------------------------------------------
 
@@ -409,7 +431,8 @@ class SeqDB:
             entry_passage["n"] = data["sequence"]
             entry_passage["a"] = aa
 
-    def align(self, sequence, entry_passage, data, db_entry, verbose=False):
+    @classmethod
+    def align(cls, sequence, entry_passage, data, db_entry, verbose=False):
         try:
             aligment_data = amino_acids.align(sequence, verbose=verbose)
         except amino_acids.SequenceIsTooShort as err:
@@ -421,17 +444,17 @@ class SeqDB:
             if aligment_data.get("lineage"):
                 if db_entry.get("l"):
                     if db_entry["l"] != aligment_data["lineage"]:
-                        module_logger.warning('Lineage detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, db_entry["l"]))
+                        module_logger.warning('Lineage detection mismatch for {}: {} vs. {}'.format(db_entry["N"], aligment_data, db_entry["l"]))
                 else:
                     db_entry["l"] = aligment_data["lineage"]
             if entry_passage.get("g"):
                 if entry_passage["g"] != aligment_data["gene"]:
-                    module_logger.warning('Gene detection mismatch for {}: {} vs. {}'.format(data["name"], aligment_data, entry_passage["g"]))
+                    module_logger.warning('Gene detection mismatch for {}: {} vs. {}'.format(db_entry["N"], aligment_data, entry_passage["g"]))
             else:
                 entry_passage["g"] = aligment_data["gene"]
             entry_passage["s"] = aligment_data["shift"]
         elif verbose: # if db_entry["v"] in ["A(H3N2)", "A(H1N1)"]:
-            module_logger.warning('Not aligned {:<45s} len:{:3d} {}'.format(data["name"], len(sequence), sequence[:40]))
+            module_logger.warning('Not aligned {:<45s} len:{:3d} {}'.format(db_entry["N"], len(sequence), sequence[:40]))
 
     def _aligned(self, entry):
         s = entry["a"]
