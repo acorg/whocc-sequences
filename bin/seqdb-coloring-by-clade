@@ -10,7 +10,7 @@ if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
-from whoccseq import seqdb, clades as clades_m, open_file, fasta as fasta_m
+from whoccseq import seqdb, clades as clades_m, open_file, fasta as fasta_m, utility
 
 # ----------------------------------------------------------------------
 
@@ -22,9 +22,9 @@ def main(args):
     result = [[] for e in setup]
     for e in db.iterate_sequences():
         for index in find_setup_entries(setup, e):
-            color_entry = find_color_priority(colors=setup[index]["colors"], clades=e["seq"].get("clades", [""]))
+            color_entry = find_color_priority(colors=setup[index]["colors"], clades=e.clades() or [""])
             if color_entry is not None:
-                result[index].append([e["seq"].get("hi_name") or e["name"], color_entry["color"], color_entry["priority"]])
+                result[index].append([e.hi_name() or e.name(), color_entry["color"], color_entry["priority"]])
     for index, r in enumerate(result):
         r.sort(key=lambda e: e[0])
         if args.format == "aa-subst-coloring-v3":
@@ -52,7 +52,7 @@ def find_color_priority(colors, clades):
 # ----------------------------------------------------------------------
 
 def find_setup_entries(setup, e):
-    return [i for i, setup_e in enumerate(setup) if e["virus_type"] == setup_e["virus_type"] and (not setup_e.get("lineage") or e.get("lineage") == setup_e["lineage"])]
+    return [i for i, setup_e in enumerate(setup) if e.virus_type() == setup_e["virus_type"] and (not setup_e.get("lineage") or e.lineage() == setup_e["lineage"])]
 
 # ----------------------------------------------------------------------
 
@@ -86,10 +86,11 @@ try:
     parser.add_argument('-f', '--format', action='store', dest='format', default="aa-subst-coloring-v3", help='Format for the output files: aa-subst-coloring-v3.')
     # parser.add_argument('--lab', action='store', dest='lab', default=None, help='Write coloring data just for this lab.')
     # parser.add_argument('--flu', action='store', dest='virus_type', default=None, help='Write coloring data just for this this virus type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1

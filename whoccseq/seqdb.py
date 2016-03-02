@@ -34,11 +34,37 @@ class Seq:
     def name(self):
         return self.db_entry["N"]
 
+    def hi_name(self):
+        return self.seq.get("h")
+
+    def virus_type(self):
+        return self.db_entry["v"]
+
+    def lineage(self):
+        return self.db_entry.get("l")
+
     def shift(self):
-        return self.seq["s"]
+        return self.seq.get("s")
 
     def aa(self):
         return self.seq["a"]
+
+    def aa_aligned(self):
+        shift = self.shift()
+        if shift is None:
+            raise RuntimeError("Not aligned")
+        s = self.aa()
+        if shift < 0:
+            s = s[-shift:]
+        elif shift > 0:
+            s = ("X" * shift) + s
+        return s
+
+    def gene(self):
+        return self.seq.get("g", "HA")
+
+    def lab_matches(self, lab):
+        return lab in self.seq["l"]
 
     def aa_len(self):
         return len(self.aa()) - max(- self.shift(), 0)
@@ -57,6 +83,12 @@ class Seq:
 
     def align(self):
         SeqDB.align(sequence=self.aa(), entry_passage=self.seq, data=None, db_entry=self.db_entry, verbose=True)
+
+    def clades(self):
+        return self.seq.get("c")
+
+    def set_clades(self, clades):
+        self.seq["c"] = clades
 
 # ----------------------------------------------------------------------
 
@@ -113,12 +145,6 @@ class SeqDB:
     #     else:
     #         s = entry["nuc"]
     #     return s
-
-    # def get_aa(self, source=None, aligned=True):
-    #     """Returns list of aa sequences from source"""
-    #     if source is None:
-    #         source = self.all()
-    #     return [self._aligned(e2) if aligned else e2["aa"] for n, e1 in source.items() for e2 in e1["data"]]
 
         # --------------------------------------------------
 
@@ -456,16 +482,6 @@ class SeqDB:
         elif verbose: # if db_entry["v"] in ["A(H3N2)", "A(H1N1)"]:
             module_logger.warning('Not aligned {:<45s} len:{:3d} {}'.format(db_entry["N"], len(sequence), sequence[:40]))
 
-    def _aligned(self, entry):
-        s = entry["a"]
-        shift = entry.get("s")
-        if shift is None:
-            raise RuntimeError("Not aligned")
-        if shift < 0:
-            s = s[-shift:]
-        elif shift > 0:
-            s = ("X" * shift) + s
-        return s
 
         # --------------------------------------------------
 

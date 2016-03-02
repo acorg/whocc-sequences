@@ -28,7 +28,6 @@ def main(args):
     for e in it:
         e.align()
 
-        # pprint.pprint(e["seq"])
     db.report()
     if args.save:
         db.save()

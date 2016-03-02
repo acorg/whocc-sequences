@@ -10,7 +10,7 @@ if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
-from whoccseq import seqdb, clades as clades_m
+from whoccseq import seqdb, clades as clades_m, utility
 
 # ----------------------------------------------------------------------
 
@@ -19,9 +19,9 @@ def main(args):
     if args.reset:
         db.reset_clade_data()
     for e in db.iterate_sequences():
-        clades = clades_m.clades_of(virus_type=e["virus_type"], lineage=e.get("lineage"), sequence=e["seq"].get("aa"), shift=e["seq"].get("shift"))
+        clades = clades_m.clades_of(virus_type=e.virus_type(), lineage=e.lineage(), sequence=e.aa(), shift=e.shift())
         if clades:
-            e["seq"]["clades"] = clades
+            e.set_clades(clades)
     db.report()
     if args.save:
         db.save()
@@ -36,10 +36,11 @@ try:
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--reset', action='store_true', dest='reset', default=False, help='Remove previous clade data.')
     parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1
