@@ -37,17 +37,37 @@ class Seq:
     def hi_name(self):
         return self.seq.get("h")
 
+    def name_hi(self):
+        return self.hi_name() or "{} {}".format(self.name(), self.passage())
+
     def virus_type(self):
         return self.db_entry["v"]
 
     def lineage(self):
         return self.db_entry.get("l")
 
+    def passage(self):
+        p = self.seq.get("p")
+        if p:
+            p = p[0]
+        else:
+            p = ""
+        return p
+
     def shift(self):
         return self.seq.get("s")
 
     def aa(self):
         return self.seq["a"]
+
+    def nuc(self):
+        return self.seq["n"]
+
+    def date(self):
+        d = self.db_entry.get("d") or None
+        if d:
+            d = d[-1]
+        return d
 
     def aa_aligned(self):
         shift = self.shift()
@@ -65,6 +85,12 @@ class Seq:
 
     def lab_matches(self, lab):
         return lab in self.seq["l"]
+
+    def labs(self):
+        return list(self.seq["l"])
+
+    def lab_ids(self, lab):
+        return self.seq["l"][lab]
 
     def aa_len(self):
         return len(self.aa()) - max(- self.shift(), 0)

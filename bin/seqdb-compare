@@ -11,34 +11,32 @@ sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
 from whoccseq import seqdb
-from whoccseq import fasta as fasta_m, open_file
+from whoccseq import fasta as fasta_m, open_file, utility
 
 # ----------------------------------------------------------------------
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    entries = sum((db.find_name(name) for name in args.names), [])
+    entries = [db.find_by_name(name) for name in args.names]
     print(len(entries), 'found')
     if len(entries) >= 2:
-        for e in entries:
-            e["uname"] = e["seq"].get("hi_name") or "{} {}".format(e["name"], e["seq"]["passages"][0])
         compare(entries[0], entries[1], args.nucs)
 
 # ----------------------------------------------------------------------
 
 def compare(e1, e2, nucs):
     if nucs:
-        s1 = e1["seq"]["nuc"]
-        s2 = e2["seq"]["nuc"]
-        p1 = - e1["seq"]["shift"] * 3
-        p2 = - e2["seq"]["shift"] * 3
+        s1 = e1.nuc()
+        s2 = e2.nuc()
+        p1 = - e1.shift() * 3
+        p2 = - e2.shift() * 3
     else:
-        s1 = e1["seq"]["aa"]
-        s2 = e2["seq"]["aa"]
-        p1 = - e1["seq"]["shift"]
-        p2 = - e2["seq"]["shift"]
-    print(1, e1["uname"])
-    print(2, e2["uname"])
+        s1 = e1.aa()
+        s2 = e2.aa()
+        p1 = - e1.shift()
+        p2 = - e2.shift()
+    print(1, e1.name_hi())
+    print(2, e2.name_hi())
     pos = 1
     while p1 < len(s1) and p2 < len(s2):
         if p1 < 0:
@@ -63,10 +61,11 @@ try:
     parser.add_argument('names', nargs="+", help='Strain names with passages to compare.')
     parser.add_argument('--nuc', action="store_true", default=False, dest="nucs", help='Compare nucleotides.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1
