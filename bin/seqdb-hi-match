@@ -20,7 +20,7 @@ STAT_WHOCC_ANNUAL_REPORT = [["{}0201".format(year), "{}0201".format(year + 1), 0
 # ----------------------------------------------------------------------
 
 def main(args):
-        db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+    db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
     if args.reset:
         db.reset_hi_data()
     hi = HIDB(os.path.expandvars(os.path.expanduser(args.path_to_hidb)))

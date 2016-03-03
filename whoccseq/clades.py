@@ -81,7 +81,7 @@ def clades_H3(lineage, sequence, shift):
     r = []
     seq_len = len(sequence)
 
-    # 158N, 159F -> 3C, 159Y -> 3c2a, 159S -> 3c3a, 62K+83R+261Q -> 3C3b.
+    # 158N, 159F -> 3C3, 159Y -> 3c2a, 159S -> 3c3a, 62K+83R+261Q -> 3C3b.
     pos158 = 157 - shift
     pos159 = 158 - shift
     if seq_len > pos159 and pos158 > 0 and sequence[pos158] == "N":
