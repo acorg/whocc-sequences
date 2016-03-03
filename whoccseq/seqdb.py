@@ -167,7 +167,7 @@ class SeqDB:
             with timeit('Reading {}'.format(os.path.realpath(self.path_to_db))):
                 data = open_file.read_json(self.path_to_db)
                 if data.get("  version") != "sequence-database-v2":
-                    raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
+                    raise RuntimeError("Unrecognized sequence database version: {}".format(data.get("  version")))
         else:
             data = {}
         self.data = data.get("data", [])
