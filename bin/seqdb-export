@@ -18,8 +18,8 @@ from whoccseq import fasta as fasta_m, open_file, utility
 def main(args):
     start_date = args.start_date and get_date(args.start_date)
     end_date = args.end_date and get_date(args.end_date)
-    virus_type = args.virus_type and normalize_virus_type(args.virus_type)
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+    virus_type = db.normalize_virus_type(args.virus_type)
     data = [e for e in db.iterate_sequences()
             if (not args.lab or e.lab_matches(args.lab))
             and (not virus_type or e.virus_type() == virus_type)
@@ -38,19 +38,6 @@ def main(args):
     else:
         raise ValueError("Unrecognized --sort argument")
     export(db, data, args=args)
-
-# ----------------------------------------------------------------------
-
-def normalize_virus_type(vt):
-    if vt.upper() in ('B', 'BV', 'BY', 'BVIC', 'BYAM', 'B/VIC', 'B/YAM'):
-        vt = 'B'
-    elif vt.upper() in ('H1PDM', 'H1SEAS'):
-        vt = 'A(H1N1)'
-    elif vt.upper() == 'H3':
-        vt = 'A(H3N2)'
-    else:
-        module_logger.error('Unrecognized virus type {}'.format(vt))
-    return vt
 
 # ----------------------------------------------------------------------
 

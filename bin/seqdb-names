@@ -11,13 +11,19 @@ sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
 from whoccseq import seqdb
-from whoccseq import fasta as fasta_m, open_file
+from whoccseq import fasta as fasta_m, open_file, utility
 
 # ----------------------------------------------------------------------
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    data = db.select(lab=args.lab, virus_type=args.virus_type, lineage=args.lineage, gene=args.gene)
+    virus_type = db.normalize_virus_type(args.virus_type)
+    data = [e.name_hi() for e in db.iterate_sequences()
+            if (not args.lab or e.lab_matches(args.lab))
+            and (not virus_type or e.virus_type() == virus_type)
+            and (not args.lineage or e.lineage() == args.lineage)
+            and e.gene() == args.gene
+            ]
     print("Names:", len(data))
     print("\n".join(sorted(data)))
 
@@ -27,14 +33,15 @@ try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     parser.add_argument('--lab', action='store', dest='lab', default=None, help='Export just for this lab.')
     parser.add_argument('--flu', action='store', dest='virus_type', default=None, help='Export just for this virus type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
     parser.add_argument('--lineage', action='store', dest='lineage', default=None, help='Export just for this lineage: VICTORIA, YAMAGATA, 2009PDM.')
     parser.add_argument('--gene', action='store', dest='gene', default="HA", help='HA or NA.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1

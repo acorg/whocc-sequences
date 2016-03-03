@@ -17,8 +17,7 @@ if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
 
-from whoccseq import seqdb
-from whoccseq import fasta as fasta_m, open_file
+from whoccseq import seqdb, fasta as fasta_m, open_file, utility
 
 # VIC: A:40    D:24-25 E:31 G:53    H:16-17 I:37-39 M:9     N:34-36 Y:15
 # YAM: A:41-42 D:28-29 E:28 G:51-52 H:14    I:33-34 M:10-11 N:30-33 Y:16-17
@@ -32,36 +31,30 @@ def main(args):
     no_tn169 = set()
     no_dqi185 = set()
 
-    for name, e1 in db.names.items():
-        if e1["virus_type"] == "B":
-            for e2 in e1["data"]:
-                shift = e2.get("shift")
-                if shift is not None and (len(e2["aa"]) - shift) > 200:
-                    name = e2.get("hi_name") or "{} {}".format(name, e2.get("passages", ""))
-                    if shift <= 0:
-                        aa = e2["aa"][-shift:]
-                    else:
-                        aa = ("X" * shift) + e2["aa"]
-                    # l165 = lineage_by_165(aa, name)
-                    l_tn169 = lineage_by_tn169(aa, name, no_tn169)
-                    l_dqi185 = lineage_by_dqi185(aa, name, no_dqi185)
-                    if l_tn169 == l_dqi185:
-                        lineage = l_tn169
-                    elif l_dqi185 is not None:
-                        lineage = l_dqi185
-                    elif l_tn169 is not None:
-                        lineage = l_tn169
-                    else:
-                        lineage = None
-                    if lineage != e1.get("lineage") and e1.get("lineage") is not None:
-                        print("{} {} vs {} (detected by seq) for {}".format(e2["aa"][164:190], e1.get("lineage"), lineage, name))
+    for e in db.iterate_sequences_aligned_with_virus_type(virus_type="B"):
+        if e.aa_len() > 200:
+            name = e.name_hi()
+            aa = e.aa_aligned()
+            # l165 = lineage_by_165(aa, name)
+            l_tn169 = lineage_by_tn169(aa, name, no_tn169)
+            l_dqi185 = lineage_by_dqi185(aa, name, no_dqi185)
+            if l_tn169 == l_dqi185:
+                lineage = l_tn169
+            elif l_dqi185 is not None:
+                lineage = l_dqi185
+            elif l_tn169 is not None:
+                lineage = l_tn169
+            else:
+                lineage = None
+            if lineage != e.lineage() and e.lineage() is not None:
+                print("{} {} vs {} (detected by seq) for {}".format(aa[164:190], e.lineage(), lineage, name))
 
-                    if lineage and e2["shift"] <= 0 and len(e2["aa"]) > 500:
-                        c = {a: e2["aa"][-e2["shift"]:].count(a) for a in ecount}
-                        if lineage == "VICTORIA" and c["E"] == 28:
-                            print("VIC E:", c, name)
-                        for a, cc in c.items():
-                            ecount[a][lineage][cc] += 1
+            if lineage and e.aa_len() > 500:
+                c = {a: aa.count(a) for a in ecount}
+                if lineage == "VICTORIA" and c["E"] == 28:
+                    print("VIC E:", c, name)
+                for a, cc in c.items():
+                    ecount[a][lineage][cc] += 1
 
     print("No TN169\n  " + "\n  ".join(sorted(no_tn169)))
     print("No DQI185\n  " + "\n  ".join(sorted(no_dqi185)))
@@ -122,11 +115,12 @@ try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    exit_code = main(args)
+    with utility.timeit(sys.argv[0]):
+        exit_code = main(args)
 except Exception as err:
     logging.error('{}\n{}'.format(err, traceback.format_exc()))
     exit_code = 1

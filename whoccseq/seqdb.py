@@ -84,7 +84,7 @@ class Seq:
         return self.seq.get("g", "HA")
 
     def lab_matches(self, lab):
-        return lab in self.seq["l"]
+        return bool(lab) and lab.upper() in self.seq["l"]
 
     def labs(self):
         return list(self.seq["l"])
@@ -162,18 +162,6 @@ class SeqDB:
 
         # --------------------------------------------------
 
-    # def get(self, entry, amino_acid, aligned):
-    #     if amino_acid:
-    #         if aligned:
-    #             s = self._aligned(entry)
-    #         else:
-    #             s = entry["aa"]
-    #     else:
-    #         s = entry["nuc"]
-    #     return s
-
-        # --------------------------------------------------
-
     def load(self):
         if os.path.isfile(self.path_to_db):
             with timeit('Reading {}'.format(os.path.realpath(self.path_to_db))):
@@ -187,25 +175,6 @@ class SeqDB:
     def save(self):
         with timeit("Writing {}".format(self.path_to_db)):
             open_file.write_json(self.path_to_db, {"  version": "sequence-database-v2", "data": self.data}, indent=1, sort_keys=True)
-
-        # --------------------------------------------------
-
-    # def find_name(self, name):
-    #     r = self.find_hi_name(name)
-    #     if not r:
-    #         n, p = self._split_name(name)
-    #         if n:
-    #             r = [e for e in self.iterate_sequences() if n in e["name"] and (not p or p in e["seq"]["passages"])]
-    #     return r
-
-    # def find_hi_name(self, name):
-    #     for e in self.iterate_sequences():
-    #         if e["seq"].get("hi_name") == name:
-    #             r = [e]
-    #             break
-    #     else:
-    #         r = []
-    #     return r
 
         # --------------------------------------------------
 
@@ -242,83 +211,6 @@ class SeqDB:
             for seq in db_entry["s"]:
                 if "s" not in seq:
                     yield Seq(db_entry, seq)
-
-    #     # --------------------------------------------------
-
-    # def select(self, lab, virus_type, lineage, gene):
-    #     data = self.all()
-    #     if lab:
-    #         data = self.select_by("lab", lab.upper(), data)
-    #     virus_type, lineage = utility.fix_virus_type_lineage(virus_type, lineage)
-    #     if virus_type:
-    #         data = self.select_by("virus_type", virus_type, data)
-    #     if lineage:
-    #         data = self.select_by("lineage", lineage, data)
-    #     data = self.select_by("gene", gene.upper(), data)
-    #     return data
-
-    # def all(self):
-    #     return self.names
-
-    # def select_by(self, field, value, source=None):
-    #     if source is None:
-    #         source = self.all()
-    #     if field in ["virus_type", "lineage"]:
-    #         data = {n: e for n,e in source.items() if e.get(field) == value}
-    #     elif field == "lab":
-    #         def fix_lab(entry):
-    #             e = {f: v for f,v in entry.items() if v != "labs"}
-    #             e["labs"] = {value: entry["labs"][value]}
-    #             return e
-    #         def filter_lab(entry):
-    #             data = [fix_lab(e) for e in entry["data"] if value in e["labs"]]
-    #             if data:
-    #                 r = {f: v for f,v in entry.items() if f != "data"}
-    #                 r["data"] = data
-    #             else:
-    #                 r = None
-    #             return r
-    #         data = {n: e for n, e in ((nn, filter_lab(ee)) for nn, ee in source.items()) if e}
-    #     elif field == "gene":
-    #         def filter_gene(entry):
-    #             data = [e for e in entry["data"] if e.get("gene", "HA") == value]
-    #             if data:
-    #                 r = {f: v for f,v in entry.items() if f != "data"}
-    #                 r["data"] = data
-    #             else:
-    #                 r = None
-    #             return r
-    #         data = {n: e for n, e in ((nn, filter_gene(ee)) for nn, ee in source.items()) if e}
-    #     else:
-    #         raise ValueError("Unsupported field {!r} to select by".format(field))
-    #     return data
-
-    # def select_aligned(self, source=None):
-
-    #     def filter_aligned(entry):
-    #         data = [e for e in entry["data"] if e.get("shift") is not None]
-    #         if data:
-    #             r = {f: v for f,v in entry.items() if f != "data"}
-    #             r["data"] = data
-    #         else:
-    #             r = None
-    #         return r
-
-    #     if source is None:
-    #         source = self.all()
-    #     data = {n: e for n, e in ((nn, filter_aligned(ee)) for nn, ee in source.items()) if e}
-    #     return data
-
-    # def names_sorted_by(self, field, source=None):
-    #     if source is None:
-    #         source = self.all()
-    #     if field == "name":
-    #         r = sorted(source)
-    #     elif field == "date":
-    #         r = sorted(source, key=lambda n: source[n]["dates"][-1] if source[n].get("dates") else "0000") # entries lacking date come first
-    #     else:
-    #         raise ValueError("Unsupported field {!r} to sort by".format(field))
-    #     return r
 
         # --------------------------------------------------
 
@@ -560,6 +452,22 @@ class SeqDB:
                     passage = " ".join(fields[name_parts + 1:])
                     break
         return name, passage
+
+    # ----------------------------------------------------------------------
+
+    @classmethod
+    def normalize_virus_type(cls, vt):
+        if vt is None:
+            pass
+        elif vt.upper() in ('B', 'BV', 'BY', 'BVIC', 'BYAM', 'B/VIC', 'B/YAM'):
+            vt = 'B'
+        elif vt.upper() in ('H1PDM', 'H1SEAS'):
+            vt = 'A(H1N1)'
+        elif vt.upper() == 'H3':
+            vt = 'A(H3N2)'
+        else:
+            module_logger.error('Unrecognized virus type {}'.format(vt))
+        return vt
 
     # ----------------------------------------------------------------------
     # Adoption if python 3.5 bisect module functions
