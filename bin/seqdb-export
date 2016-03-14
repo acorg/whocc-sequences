@@ -42,31 +42,65 @@ def main(args):
 # ----------------------------------------------------------------------
 
 def export(db, data, args):
-    if args.output_format != "fasta":
-        raise ValueError("Unsupported output format: {}".format(args.output_format))
-    module_logger.info('Writing {}'.format(args.output))
-    with open_file.open_for_writing_binary(args.output) as f:
-        for e in data:
-            labs = e.labs()
-            if labs:
-                lab = labs[0]
-                lab_ids = e.lab_ids(lab)
-                if lab_ids:
-                    lab_id = lab_ids[0]
-                else:
-                    lab_id = ""
+
+    def make_name(e):
+        labs = e.labs()
+        if labs:
+            lab = labs[0]
+            lab_ids = e.lab_ids(lab)
+            if lab_ids:
+                lab_id = lab_ids[0]
             else:
-                lab = ""
                 lab_id = ""
-            if args.amino_acids:
-                if args.aligned:
-                    sequence = e.aa_aligned()
-                else:
-                    sequence = e.aa()
+        else:
+            lab = ""
+            lab_id = ""
+        return re.sub(r"\s-", "-", re.sub(r"\s+", " ", args.name_format.format(name=e.name(), hi_name=e.name_hi(), passage=e.passage(), date=e.date() or "NO-DATE", lab_id=lab_id, lab=lab, gene=e.gene())))
+
+    def make_sequence(e):
+        if args.amino_acids:
+            if args.aligned:
+                sequence = e.aa_aligned()
+            else:
+                sequence = e.aa()
+        else:
+            if args.aligned:
+                sequence = e.nuc_aligned()
             else:
                 sequence = e.nuc()
-            name_to_write = re.sub(r"\s-", "-", re.sub(r"\s+", " ", args.name_format.format(name=e.name(), hi_name=e.name_hi(), passage=e.passage(), date=e.date() or "NO-DATE", lab_id=lab_id, lab=lab, gene=e.gene())))
-            f.write(fasta_m.generate_one(name=name_to_write, sequence=sequence, encode=args.name_encode, split=args.sequence_wrap).encode("utf-8"))
+        return sequence
+
+    module_logger.info('Writing {}'.format(args.output))
+    data_to_write = [(make_name(e), make_sequence(e)) for e in data]
+    with open_file.open_for_writing_binary(args.output) as f:
+        if args.output_format == "fasta":
+            export_fasta(f, data_to_write, args)
+        elif args.output_format == "phylip":
+            export_phylip(f, data_to_write, args)
+        else:
+            raise ValueError("Unsupported output format: {}".format(args.output_format))
+
+# ----------------------------------------------------------------------
+
+def export_fasta(f, data, args):
+    for n, s in data:
+        f.write(fasta_m.generate_one(name=n, sequence=s, encode=args.name_encode, split=args.sequence_wrap).encode("utf-8"))
+
+# ----------------------------------------------------------------------
+
+def export_phylip(f, data, args):
+    if args.name_encode:
+        names = [fasta_m.encode_name(n) for n, s in data]
+    else:
+        names = [n for n, s in data]
+    max_s_len = max(len(s) for n, s in data)
+    max_n_len = max(len(n) for n in names)
+    f.write("{} {}\n".format(len(data), max_s_len).encode("utf-8"))
+    if args.sequence_wrap:
+        raise NotImplementedError("phylip with wrapping")   # http://www.molecularevolution.org/resources/fileformats/phylip_dna
+    else:
+        for no, (n, s) in enumerate(data):
+            f.write("{:<{}s}  {}{}\n".format(names[no], max_n_len, s, "-" * (max_s_len - len(s))).encode("utf-8"))
 
 # ----------------------------------------------------------------------
 
@@ -94,7 +128,7 @@ try:
     parser.add_argument('--lineage', action='store', dest='lineage', default=None, help='Export just for this lineage: VICTORIA, YAMAGATA, 2009PDM.')
     parser.add_argument('--gene', action='store', dest='gene', default="HA", help='HA or NA.')
     parser.add_argument('--sort', action='store', dest='sort_by', default="date", help='Sort list before exporting by "date", "name".')
-    parser.add_argument('-f', '--format', action='store', dest='output_format', default='fasta', help='Output format: fasta')
+    parser.add_argument('-f', '--format', action='store', dest='output_format', default='fasta', help='Output format: fasta, phylip')
     parser.add_argument('--name-format', action='store', dest='name_format', default='{name} {passage}', help='Name format, possible fields: {name} {date} {lab_id} {passage} {lab} {gene}')
     parser.add_argument('--name-encode', action='store_true', dest='name_encode', default=False, help='Encode spaces and parentheses in names')
     parser.add_argument('--amino-acids', action='store_true', dest='amino_acids', default=False, help='Export amino-acids instead of nucleotites')
