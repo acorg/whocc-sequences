@@ -16,7 +16,6 @@ from .utility import timeit
 # match HI by cdcid and by name
 #      If there are multiple sequences per name/passage, choose the last one (Colin's request of Wed, 4 Sep 2013 20:04:22 +0200)
 # convert to aa
-# align by aa, mark HA, NA
 # detect clades
 
 # ----------------------------------------------------------------------
@@ -57,6 +56,9 @@ class Seq:
     def shift(self):
         return self.seq.get("s")
 
+    def nuc_shift(self):
+        return self.seq.get("t")
+
     def aa(self):
         return self.seq["a"]
 
@@ -68,6 +70,17 @@ class Seq:
         if d:
             d = d[-1]
         return d
+
+    def nuc_aligned(self):
+        shift = self.nuc_shift()
+        if shift is None:
+            raise RuntimeError("Not aligned")
+        s = self.nuc()
+        if shift < 0:
+            s = s[-shift:]
+        elif shift > 0:
+            s = ("-" * shift) + s
+        return s
 
     def aa_aligned(self):
         shift = self.shift()
@@ -127,6 +140,7 @@ class Seq:
 #             "n": <sequence-nucleotides>,
 #             "a": <sequence-amino-acids>,
 #             "s": <shift (int) for aa sequence>,
+#             "t": <shift (int) for nuc sequence>,
 #             "l": {<lab> :[<lab_id>]},
 #             "g": <gene: HA|NA>,
 #             "h": <hi-name>,
@@ -370,10 +384,12 @@ class SeqDB:
         if data.get("gene") and not entry_passage.get("g"):
             entry_passage["g"] = data["gene"]
         if sequence_match in ["super", "new"]:   # update sequences with the longer one
-            aa = amino_acids.translate_sequence_to_amino_acid(data["sequence"])
-            self.align(aa, entry_passage, data, db_entry)   # may raise
+            aa = amino_acids.translate_sequence_to_amino_acid(data["sequence"], name=data["name"])
             entry_passage["n"] = data["sequence"]
-            entry_passage["a"] = aa
+            entry_passage["a"] = aa.translated
+            self.align(aa.translated, entry_passage, data, db_entry)   # may raise
+            if entry_passage.get("s") is not None:
+                entry_passage["t"] = - aa.offset + entry_passage["s"] * 3
 
     @classmethod
     def align(cls, sequence, entry_passage, data, db_entry, verbose=False):

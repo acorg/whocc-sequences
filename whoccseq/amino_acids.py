@@ -24,7 +24,14 @@ CODON_TO_PROTEIN = {
     'TAA': '*', 'UAA': '*', 'TAG': '*', 'UAG': '*', 'TGA': '*', 'UGA': '*', 'TAR': '*', 'TRA': '*', 'UAR': '*', 'URA': '*',
     }
 
-def translate_sequence_to_amino_acid(sequence, min_offset=0, max_offset=2):
+class Translated:
+
+    def __init__(self, source, offset):
+        self.offset = offset
+        self.translated = "".join(nuc for nuc in (CODON_TO_PROTEIN.get(codon, "X") for codon in (source[i:i+3] for i in range(offset, len(source), 3))) if nuc != "*")
+
+
+def translate_sequence_to_amino_acid(sequence, min_offset=0, max_offset=2, name=None):
 
     def translate(sequence):
         r = "".join(CODON_TO_PROTEIN.get(codon, "X") for codon in (sequence[i:i+3] for i in range(0, len(sequence), 3)))
@@ -33,12 +40,21 @@ def translate_sequence_to_amino_acid(sequence, min_offset=0, max_offset=2):
             r = r[:stop]
         return r
 
-    best = ""
-    for offset in range(min_offset, max_offset + 1):
-        trans = translate(sequence[offset:])
-        if len(trans) > len(best):
-            best = trans
-    return best
+    translations = sorted((Translated(source=sequence, offset=offset) for offset in range(min_offset, max_offset + 1)), key=lambda e: len(e.translated), reverse=True)
+    if "HUBEI SHIYAN MAOJIAN/137" in name: # translations[0].offset != 0:
+        module_logger.warning('Translation {} offsets: {}  length: {}  source: {} translated: {}'.format(name or "", [e.offset for e in translations], [len(e.translated) for e in translations], sequence[:50], translations[0].translated[:50]))
+    return translations[0]
+
+    # best = ""
+    # best_offset = None
+    # for offset in range(min_offset, max_offset + 1):
+    #     trans = translate(sequence[offset:])
+    #     if len(trans) > len(best):
+    #         best = trans
+    #         best_offset = offset
+    # if best_offset != 0:
+    #     module_logger.warning('Best offset {} for {}'.format(best_offset, sequence[:100]))
+    # return best
 
 # ----------------------------------------------------------------------
 
