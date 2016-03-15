@@ -389,8 +389,9 @@ class SeqDB:
                 align_data = amino_acids.translate_to_aa_and_align(data["sequence"], name=data["name"])
                 if align_data:
                     entry_passage["a"] = align_data["aa"]
-                    entry_passage["s"] = align_data["shift"]
-                    entry_passage["t"] = - align_data["offset"] + entry_passage["s"] * 3
+                    if align_data.get("shift") is not None:
+                        entry_passage["s"] = align_data["shift"]
+                        entry_passage["t"] = - align_data["offset"] + entry_passage["s"] * 3
                 else:
                     module_logger.warning('Not translated/aligned {}'.format(data["name"]))
             except amino_acids.SequenceIsTooShort as err:

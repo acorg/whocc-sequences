@@ -7,6 +7,10 @@ import logging; module_logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------
 
+MINIMUM_SEQUENCE_AA_LENGTH = 150          # actually H3 3C3b clade requires 261Q
+
+# ----------------------------------------------------------------------
+
 # Some sequences from CNIC (and perhaps from other labs) have initial part of
 # nucleotides with stop codons inside. To figure out correct translation we
 # have first to translate with all possible offsets (0, 1, 2) and not stoppoing
@@ -23,8 +27,10 @@ def translate_to_aa_and_align(sequence, name=None):
         for sub_no, sub_aa in enumerate(aa_parts):
             if len(sub_aa) >= MINIMUM_SEQUENCE_AA_LENGTH:
                 align_data = align(sub_aa)
-                if align_data and align_data.get("shift") is not None:
-                    r.append({**align_data, "aa": aa, "offset": offset, "shift": align_data.get("shift") - prefix_len})
+                if align_data:            # not shift can be absent in case it's not HA
+                    if align_data.get("shift") is not None and prefix_len > 0:
+                        align_data["shift"] -= prefix_len
+                    r.append({**align_data, "aa": aa, "offset": offset})
                     break
             prefix_len += 1 + len(sub_aa)
         else:
@@ -33,7 +39,7 @@ def translate_to_aa_and_align(sequence, name=None):
         if max_part_len < MINIMUM_SEQUENCE_AA_LENGTH:
             raise SequenceIsTooShort("sequence parts between stop codons are too short: <={}".format(max_part_len))
         else:
-            module_logger.warning('{}\n  {}\n  {}\n  {}\n  {}'.format(name, sequence, translate(sequence, 0), translate(sequence, 1), translate(sequence, 2)))
+            module_logger.warning('{} max_part_len: {}\n  {}\n  {}\n  {}\n  {}'.format(name, max_part_len, sequence, translate(sequence, 0), translate(sequence, 1), translate(sequence, 2)))
     if len(r) > 1:
         module_logger.error('Multiple translations and alignment for {}:\n{}'.format(name, "\n".join(str(e) for e in r)))
     return r and r[0]
@@ -230,21 +236,25 @@ ALIGNMENT_RAW_DATA = [
     {"re": re.compile(r"TNATELVQ"),          "endpos": 100, "virus_type": "A(H3N2)",                        "shift": 36,           "gene": "HA", "aligner_name": "h3-TNA"},
     {"re": re.compile(r"VERSKAYSN"),         "endpos": 100, "virus_type": "A(H3N2)",                        "shift": 87,           "gene": "HA", "aligner_name": "h3-VER"},
 
-    {"re": re.compile(r"MKVKLLVLLCTFTATYA"), "endpos": 20,  "virus_type": "A(H1N1)",                        "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"MKVKLLVLLCTFSATYA"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "SEASONAL", "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"M[EK]AIL[VX][VX][LM]L[CHY]T[FL][AT]T[AT][NS]A"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"DTLCIGYHA"),         "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
-    {"re": re.compile(r"DT[IL]C[IM]G[XY]H[AX]NN"),    "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
-    {"re": re.compile(r"GYHANNS[AT]DTV"),    "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
 
-    {"re": re.compile(r"MNPNQKIITIGSVCMTI"),                          "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "shift": 0, "gene": "NA"}, # http://sbkb.org/
-    {"re": re.compile(r"MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL"), "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0, "gene": "M1"}, # http://sbkb.org/
+    {"re": re.compile(r"MKVKLLVLLCTFTATYA"),                   "endpos": 20,  "virus_type": "A(H1N1)",                        "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"MKVKLLVLLCTFSATYA"),                   "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "SEASONAL", "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"M[EK]AIL[VX][VX][LM]L[CHY]T[FL][AT]T[AT][NS]A"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA"},
+    {"re": re.compile(r"DTLCIGYHA"),                           "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
+    {"re": re.compile(r"DT[IL]C[IM]G[XY]H[AX]NN"),             "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
+    {"re": re.compile(r"GYHANNS[AT]DTV"),                      "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
+    {"re": re.compile(r"[KQ]SY[AI]N[ND]K[EG]KEVLVLWG[IV]HHP"), "endpos": 220, "virus_type": "A(H1N1)",                        "shift": 162,          "gene": "HA"},
+
+    {"re": re.compile(r"MNPNQKIITIGSVCMTI"),                          "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "gene": "NA"}, # http://sbkb.org/
+    {"re": re.compile(r"MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL"), "endpos": 100, "virus_type": "A(H1N1)",                        "gene": "M1"}, # http://sbkb.org/
+
 
     {"re": re.compile(r"M[EKT][AGT][AIL][ICX]V[IL]L[IMT][AEILVX][AIVX][AMT]S[DHKNSTX][APX]"), "endpos": 30, "virus_type": "B", "signalpeptide": True, "gene": "HA"}, # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf, inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
     {"re": re.compile(r"DR[ISV]C[AST][GX][ITV][IT][SWX]S[DKNX]SP[HXY][ILTVX][VX][KX]T[APT]T[QX][GV][EK][IV]NVTG[AV][IX][LPS]LT[AITX][AIST][LP][AIT][KRX]"), "endpos": 50, "virus_type": "B", "shift": 0, "gene": "HA"},
     {"re": re.compile(r"CTG[IVX]TS[AS]NSPHVVKTATQGEVNVTGVIPLTTTP"), "endpos": 50, "virus_type": "B", "shift": 3, "gene": "HA"},
     {"re": re.compile(r"[XV]NVTGVIPLTTTPTK"), "endpos": 50, "virus_type": "B", "shift": 23, "gene": "HA"},
     {"re": re.compile(r"CTDLDVALGRP"), "endpos": 150, "virus_type": "B", "shift": 59, "gene": "HA"},
+
     {"re": re.compile(r"MLPSTIQ[MT]LTL[FY][IL]TSGGVLLSLY[AV]S[AV][LS]LSYLLY[SX]DIL[LX][KR]F"), "endpos": 45, "virus_type": "B", "gene": "NA"},
     {"re": re.compile(r"MA[DN]NMTT[AT]QIEVGPGATNAT[IM]NFEAGILECYERLSWQ[KR]AL"),                "endpos": 45, "virus_type": "B", "gene": "NS1"},
     {"re": re.compile(r"MA[NX][DN][NX]MTTTQIEVGPGATNATINFEAGILECYERLSWQR"),                    "endpos": 45, "virus_type": "B", "gene": "NS1"}, # has insertion at 2 or 3 compared to the above
@@ -252,8 +262,6 @@ ALIGNMENT_RAW_DATA = [
 
     {"re": re.compile(r"MVVTSNA"),                                    "endpos": 20, "virus_type": "B", "signalpeptide": True, "gene": "HA"},
 ]
-
-MINIMUM_SEQUENCE_AA_LENGTH = 100          # actually H3 3C3b clade requires 261Q
 
 class Aligner:
 
