@@ -7,7 +7,7 @@ import logging; module_logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------
 
-MINIMUM_SEQUENCE_AA_LENGTH = 150          # actually H3 3C3b clade requires 261Q
+MINIMUM_SEQUENCE_AA_LENGTH = 200          # actually H3 3C3b clade requires 261Q
 
 # ----------------------------------------------------------------------
 
@@ -65,23 +65,6 @@ CODON_TO_PROTEIN = {
 
 def translate(source, offset):
     return "".join(CODON_TO_PROTEIN.get(codon, "X") for codon in (source[i:i+3] for i in range(offset, len(source), 3)))
-
-# class Translated:
-
-#     def __init__(self, source, offset):
-#         self.offset = offset
-#         self.translated = "".join(itertools.takewhile(lambda n: n != " ", (CODON_TO_PROTEIN.get(codon, "X") for codon in (source[i:i+3] for i in range(offset, len(source), 3)))))
-#             # nuc for nuc in (CODON_TO_PROTEIN.get(codon, "X") for codon in (source[i:i+3] for i in range(offset, len(source), 3))) if nuc != "*")
-
-
-# def translate_sequence_to_amino_acid(sequence, min_offset=0, max_offset=2, name=None):
-#     translations = sorted((Translated(source=sequence, offset=offset) for offset in range(min_offset, max_offset + 1)), key=lambda e: len(e.translated), reverse=True)
-#     if "CHAOYANG/158/2010" in name: # translations[0].offset != 0:
-#         module_logger.warning('Translation {} offsets: {}  length: {}  source: {} translated: {}'.format(name or "", [e.offset for e in translations], [len(e.translated) for e in translations], sequence[:100], translations[0].translated[:50]))
-#         for beg in [0, 1, 2]:
-#             module_logger.warning("\n{}".format("\n".join("{:2d} {} {}".format(off, sequence[off:off+3], CODON_TO_PROTEIN.get(sequence[off:off+3], "X")) for off in range(beg, 200, 3))))
-#     #     raise NotImplementedError()
-#     return translations[0]
 
 # ----------------------------------------------------------------------
 
@@ -240,13 +223,18 @@ ALIGNMENT_RAW_DATA = [
     {"re": re.compile(r"MKVKLLVLLCTFTATYA"),                   "endpos": 20,  "virus_type": "A(H1N1)",                        "signalpeptide": True, "gene": "HA"},
     {"re": re.compile(r"MKVKLLVLLCTFSATYA"),                   "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "SEASONAL", "signalpeptide": True, "gene": "HA"},
     {"re": re.compile(r"M[EK]AIL[VX][VX][LM]L[CHY]T[FL][AT]T[AT][NS]A"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"DTLCIGYHA"),                           "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
+    {"re": re.compile(r"DTLCI[GX][YX]HA"),                     "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
     {"re": re.compile(r"DT[IL]C[IM]G[XY]H[AX]NN"),             "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
     {"re": re.compile(r"GYHANNS[AT]DTV"),                      "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
     {"re": re.compile(r"[KQ]SY[AI]N[ND]K[EG]KEVLVLWG[IV]HHP"), "endpos": 220, "virus_type": "A(H1N1)",                        "shift": 162,          "gene": "HA"},
+    {"re": re.compile(r"SSISSFER"),                            "endpos": 200, "virus_type": "A(H1N1)",                        "shift": 105,          "gene": "HA"},
 
     {"re": re.compile(r"MNPNQKIITIGSVCMTI"),                          "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "gene": "NA"}, # http://sbkb.org/
+    {"re": re.compile(r"FAAGQSVVSVKLAGNSSLCPVSGWAIYSK"),              "endpos": 200, "virus_type": "A(H1N1)", "lineage": "2009PDM",  "gene": "NA"},
+    {"re": re.compile(r"QASYKIFRIEKGKI"),                             "endpos": 300, "virus_type": "A(H1N1)", "lineage": "2009PDM",  "gene": "NA"},
     {"re": re.compile(r"MSLLTEVETYVLSIIPSGPLKAEIAQRLESVFAGKNTDLEAL"), "endpos": 100, "virus_type": "A(H1N1)",                        "gene": "M1"}, # http://sbkb.org/
+    {"re": re.compile(r"MGLIYNRMGTVTTEAAFGLVCA"),                     "endpos": 200, "virus_type": "A(H1N1)",                        "gene": "M1"},
+    {"re": re.compile(r"QRLESVFAGKNTDLEALMEWL"),                      "endpos": 200, "virus_type": "A(H1N1)",                        "gene": "M1"},
 
 
     {"re": re.compile(r"M[EKT][AGT][AIL][ICX]V[IL]L[IMT][AEILVX][AIVX][AMT]S[DHKNSTX][APX]"), "endpos": 30, "virus_type": "B", "signalpeptide": True, "gene": "HA"}, # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf, inferred by Eu for B/INDONESIA/NIHRD-JBI152/2015, B/CAMEROON/14V-8639/2014
