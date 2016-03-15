@@ -18,10 +18,7 @@ from whoccseq import fasta as fasta_m, fasta_old, acmacs, utility
 def main(args):
     acmacs.api(args.acmacs_url)
     db = seqdb.SeqDB(os.path.expanduser(args.path_to_db), try_to_load=False)
-    # if args.input:
-    #     files = [make_file_entry(f) for f in args.input]
-    # else:
-    files = collect_files(db, os.path.expandvars(os.path.expanduser(args.source_dir)))
+    files = collect_files(db, args.input, os.path.expandvars(os.path.expanduser(args.source_dir)))
     # read_all_files_update_db(db, files)
     read_file_one_by_one_update_db(db, files)
     db.report()
@@ -62,32 +59,35 @@ def make_file_entry(db, fn):
 
 # ----------------------------------------------------------------------
 
-def collect_files(db, source_dir):
+def collect_files(db, input_files, source_dir):
     import glob
-    r = [make_file_entry(db, fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2")) if "aminoacid.fas.bz2" not in fn]
+    if input_files:
+        r = [make_file_entry(db, fn) for fn in input_files]
+    else:
+        r = [make_file_entry(db, fn) for fn in glob.glob(os.path.join(source_dir, "*.fas.bz2")) if "aminoacid.fas.bz2" not in fn]
     r.sort(key=lambda e: e["date"])
     module_logger.debug('{} fasta files found for {} {}'.format(len(r), sorted(set(e["lab"] for e in r)), sorted(set(e["virus_type"] for e in r))))
     return r
 
 # ----------------------------------------------------------------------
 
-try:
-    import argparse
-    parser = argparse.ArgumentParser(description=__doc__)
-    # parser.add_argument('input', nargs="*", help='Fasta files to process.')
-    parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
-    parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
-    # parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
-    parser.add_argument('--acmacs', action='store', dest='acmacs_url', default='https://localhost:1168', help='AcmacsWeb server host and port, e.g. https://localhost:1168.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
-    args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
-    with utility.timeit(sys.argv[0]):
+with utility.timeit(sys.argv[0]):
+    try:
+        import argparse
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument('input', nargs="*", help='Fasta files to process (instead of processing all in -i).')
+        parser.add_argument('-i', '--input', action='store', dest='source_dir', default="~/ac/tables-store/sequences/", help='Directory with the original fasta, csv, etc. files.')
+        parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
+        parser.add_argument('-n', '--no-save', action='store_false', dest='save', default=True, help='Do not save resulting database.')
+        # parser.add_argument('--gene', action='store', dest='default_gene', default="HA", help='default gene.')
+        parser.add_argument('--acmacs', action='store', dest='acmacs_url', default='https://localhost:1168', help='AcmacsWeb server host and port, e.g. https://localhost:1168.')
+        parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
+        args = parser.parse_args()
+        logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
         exit_code = main(args)
-except Exception as err:
-    logging.error('{}\n{}'.format(err, traceback.format_exc()))
-    exit_code = 1
+    except Exception as err:
+        logging.error('{}\n{}'.format(err, traceback.format_exc()))
+        exit_code = 1
 exit(exit_code)
 
 # ======================================================================

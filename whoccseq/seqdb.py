@@ -384,37 +384,61 @@ class SeqDB:
         if data.get("gene") and not entry_passage.get("g"):
             entry_passage["g"] = data["gene"]
         if sequence_match in ["super", "new"]:   # update sequences with the longer one
-            aa = amino_acids.translate_sequence_to_amino_acid(data["sequence"], name=data["name"])
             entry_passage["n"] = data["sequence"]
-            entry_passage["a"] = aa.translated
-            self.align(aa.translated, entry_passage, data, db_entry)   # may raise
-            if entry_passage.get("s") is not None:
-                entry_passage["t"] = - aa.offset + entry_passage["s"] * 3
-
-    @classmethod
-    def align(cls, sequence, entry_passage, data, db_entry, verbose=False):
-        try:
-            aligment_data = amino_acids.align(sequence, verbose=verbose)
-        except amino_acids.SequenceIsTooShort as err:
-            raise Exclude(str(err))
-        if aligment_data:
-            module_logger.debug('aligment_data {}'.format(aligment_data))
-            if aligment_data["virus_type"] != db_entry["v"]:
-                module_logger.warning('Virus type detection mismatch {} vs. {}'.format(aligment_data, data))
-            if aligment_data.get("lineage"):
-                if db_entry.get("l"):
-                    if db_entry["l"] != aligment_data["lineage"]:
-                        module_logger.warning('Lineage detection mismatch for {}: {} vs. {}'.format(db_entry["N"], aligment_data, db_entry["l"]))
+            try:
+                align_data = amino_acids.translate_to_aa_and_align(data["sequence"], name=data["name"])
+                if align_data:
+                    entry_passage["a"] = align_data["aa"]
+                    entry_passage["s"] = align_data["shift"]
+                    entry_passage["t"] = - align_data["offset"] + entry_passage["s"] * 3
                 else:
-                    db_entry["l"] = aligment_data["lineage"]
-            if entry_passage.get("g"):
-                if entry_passage["g"] != aligment_data["gene"]:
-                    module_logger.warning('Gene detection mismatch for {}: {} vs. {}'.format(db_entry["N"], aligment_data, entry_passage["g"]))
-            else:
-                entry_passage["g"] = aligment_data["gene"]
-            entry_passage["s"] = aligment_data["shift"]
-        elif verbose: # if db_entry["v"] in ["A(H3N2)", "A(H1N1)"]:
-            module_logger.warning('Not aligned {:<45s} len:{:3d} {}'.format(db_entry["N"], len(sequence), sequence[:40]))
+                    module_logger.warning('Not translated/aligned {}'.format(data["name"]))
+            except amino_acids.SequenceIsTooShort as err:
+                raise Exclude(str(err))
+
+    # def _update_entry_passage(self, entry_passage, data, sequence_match, db_entry):
+    #     if data.get("passage") and data["passage"] not in entry_passage["p"]:
+    #         entry_passage["p"].append(data["passage"])
+    #     lab_e = entry_passage["l"].setdefault(data["lab"], [])
+    #     if data.get("lab_id") and data["lab_id"] not in lab_e:
+    #         lab_e.append(data["lab_id"])
+    #     if data.get("gene") and not entry_passage.get("g"):
+    #         entry_passage["g"] = data["gene"]
+    #     if sequence_match in ["super", "new"]:   # update sequences with the longer one
+    #         aa = amino_acids.translate_sequence_to_amino_acid(data["sequence"], name=data["name"])
+    #         entry_passage["n"] = data["sequence"]
+    #         entry_passage["a"] = aa.translated
+    #         self.align(aa.translated, entry_passage, data, db_entry)   # may raise
+    #         if entry_passage.get("s") is not None:
+    #             entry_passage["t"] = - aa.offset + entry_passage["s"] * 3
+    #         if "BEIJING CHAOYANG/158/2010" in data["name"]:
+    #             module_logger.warning('{} ALIGN nuc:{} aa:{} shift:{}'.format(data["name"], data["sequence"][:50], aa.translated[:50], entry_passage["s"]))
+    #             #raise NotImplementedError()
+
+    # @classmethod
+    # def align(cls, sequence, entry_passage, data, db_entry, verbose=False):
+    #     try:
+    #         aligment_data = amino_acids.align(sequence, verbose=verbose)
+    #     except amino_acids.SequenceIsTooShort as err:
+    #         raise Exclude(str(err))
+    #     if aligment_data:
+    #         module_logger.debug('aligment_data {}'.format(aligment_data))
+    #         if aligment_data["virus_type"] != db_entry["v"]:
+    #             module_logger.warning('Virus type detection mismatch {} vs. {}'.format(aligment_data, data))
+    #         if aligment_data.get("lineage"):
+    #             if db_entry.get("l"):
+    #                 if db_entry["l"] != aligment_data["lineage"]:
+    #                     module_logger.warning('Lineage detection mismatch for {}: {} vs. {}'.format(db_entry["N"], aligment_data, db_entry["l"]))
+    #             else:
+    #                 db_entry["l"] = aligment_data["lineage"]
+    #         if entry_passage.get("g"):
+    #             if entry_passage["g"] != aligment_data["gene"]:
+    #                 module_logger.warning('Gene detection mismatch for {}: {} vs. {}'.format(db_entry["N"], aligment_data, entry_passage["g"]))
+    #         else:
+    #             entry_passage["g"] = aligment_data["gene"]
+    #         entry_passage["s"] = aligment_data["shift"]
+    #     elif verbose: # if db_entry["v"] in ["A(H3N2)", "A(H1N1)"]:
+    #         module_logger.warning('Not aligned {:<45s} len:{:3d} {}'.format(db_entry["N"], len(sequence), sequence[:40]))
 
 
         # --------------------------------------------------
