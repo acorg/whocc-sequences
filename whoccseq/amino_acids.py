@@ -35,6 +35,8 @@ def translate_to_aa_and_align(sequence, name=None):
             prefix_len += 1 + len(sub_aa)
         else:
             max_part_len = max(max_part_len, max(len(p) for p in aa_parts))
+    if "NANHUI/1115/2008" in name:
+        module_logger.info('{} {}'.format(name, r))
     # if "DNIPROPETROVSK/1181/2009" in name:
     #     module_logger.warning('{} max_part_len: {}\n  {}\n  {}\n  {}\n  {}'.format(name, max_part_len, sequence, translate(sequence, 0), translate(sequence, 1), translate(sequence, 2)))
     if not r:
@@ -222,14 +224,15 @@ ALIGNMENT_RAW_DATA = [
     {"re": re.compile(r"VERSKAYSN"),         "endpos": 100, "virus_type": "A(H3N2)",                        "shift": 87,           "gene": "HA", "aligner_name": "h3-VER"},
 
 
-    {"re": re.compile(r"MKVKLLVLLCTFTATYA"),                   "endpos": 20,  "virus_type": "A(H1N1)",                        "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"MKVKLLVLLCTFSATYA"),                   "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "SEASONAL", "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"M[EK]AIL[VX][VX][LM]L[CHY]T[FL][AT]T[AT][NS]A"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA"},
-    {"re": re.compile(r"DTLCI[GX][YX]HA"),                     "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
-    {"re": re.compile(r"DT[IL]C[IM]G[XY]H[AX]NN"),             "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA"},
-    {"re": re.compile(r"GYHANNS[AT]DTV"),                      "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA"},
-    {"re": re.compile(r"[KQ]SY[AI]N[ND]K[EG]KEVLVLWG[IV]HHP"), "endpos": 220, "virus_type": "A(H1N1)",                        "shift": 162,          "gene": "HA"},
-    {"re": re.compile(r"SSISSFER"),                            "endpos": 200, "virus_type": "A(H1N1)",                        "shift": 105,          "gene": "HA"},
+    {"re": re.compile(r"MKVK[LY]LVLLCTFTATYA"),                          "endpos": 20,  "virus_type": "A(H1N1)",                        "signalpeptide": True, "gene": "HA", "aligner_name": "h1-MKV-1"},
+    {"re": re.compile(r"MKVKLLVLLCTFSATYA"),                             "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "SEASONAL", "signalpeptide": True, "gene": "HA", "aligner_name": "h1-MKV-2"},
+    {"re": re.compile(r"M[EK]AIL[VX][VX][LM]L[CHY]T[FL][AT]T[AT][NS]A"), "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "signalpeptide": True, "gene": "HA", "aligner_name": "h1-MKA-2"},
+    {"re": re.compile(r"DTLCI[GX][YX]HA"),                               "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA", "aligner_name": "h1-DTL-1"},
+    {"re": re.compile(r"DT[IL]C[IM]G[HXY]H[AX]NN"),                      "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 0,            "gene": "HA", "aligner_name": "h1-DTL-2"},
+    {"re": re.compile(r"GYHANNS[AT]DTV"),                                "endpos": 100, "virus_type": "A(H1N1)",                        "shift": 5,            "gene": "HA", "aligner_name": "h1-GYH"},
+    {"re": re.compile(r"[DN]YEELREQL"),                                  "endpos": 120, "virus_type": "A(H1N1)",                        "shift": 96,          "gene": "HA",  "aligner_name": "h1-DYE"},
+    {"re": re.compile(r"[KQ]SY[AI]N[ND]K[EG]KEVLVLWG[IV]HHP"),           "endpos": 220, "virus_type": "A(H1N1)",                        "shift": 162,          "gene": "HA", "aligner_name": "h1-KSY"},
+    {"re": re.compile(r"SSISSFER"),                                      "endpos": 200, "virus_type": "A(H1N1)",                        "shift": 105,          "gene": "HA", "aligner_name": "h1-SSI"},
 
     {"re": re.compile(r"MNPNQKIITIGSVCMTI"),                          "endpos": 20,  "virus_type": "A(H1N1)", "lineage": "2009PDM",  "gene": "NA"}, # http://sbkb.org/
     {"re": re.compile(r"FAAGQSVVSVKLAGNSSLCPVSGWAIYSK"),              "endpos": 200, "virus_type": "A(H1N1)", "lineage": "2009PDM",  "gene": "NA"},

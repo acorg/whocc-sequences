@@ -93,13 +93,14 @@ class Seq:
             s = s[-shift:]
         elif shift > 0:
             s = ("X" * shift) + s
-        # find the longest part not having *, replace other parts with X
-        parts = sorted(enumerate(s.split("*")), key=lambda e: len(e[1]), reverse=True)
-        if len(parts) == 2 and parts[1][1] == "":
-            parts = parts[:1]
-        s = "X".join(e[1] for e in sorted((p if i == 0 else (p[0], "X" * len(p[1])) for i, p in enumerate(parts)), key=operator.itemgetter(0)))
-        # strip trailing Xs
-        s = self.sReTrailingXs.sub("", s)
+        if True:
+            # find the longest part not having *, replace other parts with X
+            parts = sorted(enumerate(s.split("*")), key=lambda e: len(e[1]), reverse=True)
+            if len(parts) == 2 and parts[1][1] == "":
+                parts = parts[:1]
+            s = "X".join(e[1] for e in sorted((p if i == 0 else (p[0], "X" * len(p[1])) for i, p in enumerate(parts)), key=operator.itemgetter(0)))
+            # strip trailing Xs
+            s = self.sReTrailingXs.sub("", s)
         return s
 
     def gene(self):
@@ -401,10 +402,28 @@ class SeqDB:
                     if align_data.get("shift") is not None:
                         entry_passage["s"] = align_data["shift"]
                         entry_passage["t"] = - align_data["offset"] + entry_passage["s"] * 3
+                        self._check_aligned(entry_passage, db_entry)
                 else:
                     module_logger.warning('Not translated/aligned {}'.format(data["name"]))
             except amino_acids.SequenceIsTooShort as err:
                 raise Exclude(str(err))
+
+    sReH1AlignCheck1 = re.compile(r"[HX][AX][NX][NX][SX]")
+    sReH1AlignCheck2 = re.compile(r"[SV]YIVE")
+    sReH3AlignCheck1 = re.compile(r"T[IX](TN|AN|TS|TD|TH|TY|TK|MN|XN)")
+    sReBAlignCheck1 = re.compile(r"T[AITX][AIST](PTK|PIK|LTK|PTR|PAK|PXK|PTQ|PKK|PVK|PTX)")
+
+    def _check_aligned(self, entry_passage, db_entry):
+        shift = entry_passage["s"]
+        if db_entry["v"] == "A(H1N1)":
+            if shift <= 0 and not self.sReH1AlignCheck1.match(entry_passage["a"][-shift + 7: -shift + 12]) and not self.sReH1AlignCheck2.match(entry_passage["a"][-shift + 76: -shift + 81]):
+                module_logger.warning('Alignment problem (H1 HANNS or SYIVE) for {}: {} {}'.format(db_entry["N"], entry_passage["a"][-shift + 7: -shift + 12], entry_passage["a"][-shift + 76: -shift + 81]))
+        elif db_entry["v"] == "A(H3N2)":
+            if shift <= 0 and not self.sReH3AlignCheck1.match(entry_passage["a"][-shift + 27: -shift + 31]):
+                module_logger.warning('Alignment problem (H3 TITN) for {}: {}'.format(db_entry["N"], entry_passage["a"][-shift + 27: -shift + 31]))
+        elif db_entry["v"] == "B":
+            if shift <= 0 and not self.sReBAlignCheck1.match(entry_passage["a"][-shift + 32: -shift + 38]):
+                module_logger.warning('Alignment problem (B TTTPTK) for {}: {}'.format(db_entry["N"], entry_passage["a"][-shift + 32: -shift + 38]))
 
     # def _update_entry_passage(self, entry_passage, data, sequence_match, db_entry):
     #     if data.get("passage") and data["passage"] not in entry_passage["p"]:
