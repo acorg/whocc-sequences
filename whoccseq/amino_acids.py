@@ -35,6 +35,8 @@ def translate_to_aa_and_align(sequence, name=None):
             prefix_len += 1 + len(sub_aa)
         else:
             max_part_len = max(max_part_len, max(len(p) for p in aa_parts))
+    # if "DNIPROPETROVSK/1181/2009" in name:
+    #     module_logger.warning('{} max_part_len: {}\n  {}\n  {}\n  {}\n  {}'.format(name, max_part_len, sequence, translate(sequence, 0), translate(sequence, 1), translate(sequence, 2)))
     if not r:
         if max_part_len < MINIMUM_SEQUENCE_AA_LENGTH:
             raise SequenceIsTooShort("sequence parts between stop codons are too short: <={}".format(max_part_len))

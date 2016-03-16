@@ -6,7 +6,7 @@
 Class to access sequence database
 """
 
-import os, sys, json, re, bisect, collections
+import os, sys, json, re, bisect, collections, operator
 import logging; module_logger = logging.getLogger(__name__)
 from . import open_file, acmacs, amino_acids, utility
 from .utility import timeit
@@ -25,6 +25,8 @@ class Exclude (Exception): pass
 # ----------------------------------------------------------------------
 
 class Seq:
+
+    sReTrailingXs = re.compile(r"X+$")
 
     def __init__(self, db_entry, seq):
         self.db_entry = db_entry
@@ -60,7 +62,7 @@ class Seq:
         return self.seq.get("t")
 
     def aa(self):
-        return self.seq["a"]
+        return self.seq.get("a")
 
     def nuc(self):
         return self.seq["n"]
@@ -91,6 +93,13 @@ class Seq:
             s = s[-shift:]
         elif shift > 0:
             s = ("X" * shift) + s
+        # find the longest part not having *, replace other parts with X
+        parts = sorted(enumerate(s.split("*")), key=lambda e: len(e[1]), reverse=True)
+        if len(parts) == 2 and parts[1][1] == "":
+            parts = parts[:1]
+        s = "X".join(e[1] for e in sorted((p if i == 0 else (p[0], "X" * len(p[1])) for i, p in enumerate(parts)), key=operator.itemgetter(0)))
+        # strip trailing Xs
+        s = self.sReTrailingXs.sub("", s)
         return s
 
     def gene(self):
@@ -500,14 +509,14 @@ class SeqDB:
     def normalize_virus_type(cls, vt):
         if vt is None:
             pass
-        elif vt.upper() in ('B', 'BV', 'BY', 'BVIC', 'BYAM', 'B/VIC', 'B/YAM'):
-            vt = 'B'
-        elif vt.upper() in ('H1PDM', 'H1SEAS'):
-            vt = 'A(H1N1)'
-        elif vt.upper() == 'H3':
-            vt = 'A(H3N2)'
+        elif vt.upper() in ["B", "BV", "BY", "BVIC", "BYAM", "B/VIC", "B/YAM"]:
+            vt = "B"
+        elif vt.upper() in ["H1PDM", "H1SEAS", "H1", "A(H1N1)"]:
+            vt = "A(H1N1)"
+        elif vt.upper() in ["H3", "A(H3N2)"]:
+            vt = "A(H3N2)"
         else:
-            module_logger.error('Unrecognized virus type {}'.format(vt))
+            module_logger.error("Unrecognized virus type {}".format(vt))
         return vt
 
     # ----------------------------------------------------------------------
