@@ -41,6 +41,9 @@ class Seq:
     def name_hi(self):
         return self.hi_name() or "{} {}".format(self.name(), self.passage())
 
+    def seq_id(self):
+        return "{}__{}".format(self.name(), self.passage())
+
     def virus_type(self):
         return self.db_entry["v"]
 

@@ -45,7 +45,7 @@ def main(args):
 
 def export(db, data, args):
 
-    def make_name(e):
+    def make_name_with_lab(e):
         labs = e.labs()
         if labs:
             lab = labs[0]
@@ -57,7 +57,10 @@ def export(db, data, args):
         else:
             lab = ""
             lab_id = ""
-        return re.sub(r"\s-", "-", re.sub(r"\s+", " ", args.name_format.format(name=e.name(), hi_name=e.name_hi(), passage=e.passage(), date=e.date() or "NO-DATE", lab_id=lab_id, lab=lab, gene=e.gene())))
+        return re.sub(r"\s-", "-", re.sub(r"\s+", " ", args.name_format.format(name=e.name(), hi_name=e.name_hi(), passage=e.passage(), seq_id=e.seq_id(), date=e.date() or "NO-DATE", lab_id=lab_id, lab=lab, gene=e.gene())))
+
+    def make_name(e):
+        return re.sub(r"\s-", "-", re.sub(r"\s+", " ", args.name_format.format(name=e.name(), hi_name=e.name_hi(), passage=e.passage(), seq_id=e.seq_id(), date=e.date() or "NO-DATE", gene=e.gene())))
 
     def make_sequence(e):
         if args.amino_acids:
@@ -80,7 +83,11 @@ def export(db, data, args):
         return s
 
     module_logger.info('Writing {}'.format(args.output))
-    data_to_write = [(make_name(e), make_sequence(e)) for e in data]
+    if "lab" in args.name_format:
+        name_maker = make_name_with_lab
+    else:
+        name_maker = make_name
+    data_to_write = [(name_maker(e), make_sequence(e)) for e in data]
 
     if args.most_common_length:
         len_stat = collections.Counter(len(e[1]) for e in data_to_write)
@@ -145,7 +152,7 @@ try:
     parser.add_argument('--gene', action='store', dest='gene', default="HA", help='HA or NA.')
     parser.add_argument('--sort', action='store', dest='sort_by', default="date", help='Sort list before exporting by "date", "name".')
     parser.add_argument('-f', '--format', action='store', dest='output_format', default='fasta', help='Output format: fasta, phylip')
-    parser.add_argument('--name-format', action='store', dest='name_format', default='{name} {passage}', help='Name format, possible fields: {name} {date} {lab_id} {passage} {lab} {gene}')
+    parser.add_argument('--name-format', action='store', dest='name_format', default='{name} {passage}', help='Name format, possible fields: {name} {date} {lab_id} {passage} {lab} {gene} {seq_id}. seq_id is used for later matching with seqdb data, e.g. when phylogenetic tree is made.')
     parser.add_argument('--name-encode', action='store_true', dest='name_encode', default=False, help='Encode spaces and parentheses in names')
     parser.add_argument('--amino-acids', action='store_true', dest='amino_acids', default=False, help='Export amino-acids instead of nucleotites')
     parser.add_argument('--no-wrap', action='store_false', dest='sequence_wrap', default=True, help='Do not wrap sequence and generate long lines')
