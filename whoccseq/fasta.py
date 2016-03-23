@@ -6,7 +6,7 @@
 Functions for reading and generating fasta files.
 """
 
-import os, re
+import os, re, collections
 import logging; module_logger = logging.getLogger(__name__)
 from . import open_file
 
@@ -200,6 +200,97 @@ def sequence_split(sequence, chunk_len=75, separator="\n"):
     else:
         r = sequence
     return r
+
+# ----------------------------------------------------------------------
+
+def export(data, output, output_format :str, truncate_to_most_common :bool, name_format, amino_acids :bool, aligned :bool, encode_name :bool, wrap :bool):
+    """
+    output: filename or "-"
+    output_format: "fasta", "phylip"
+    truncate_to_most_common: bool - make all sequence of the same length, use the most common length among all data
+    name_format: "{name} {date} {lab_id} {passage} {lab} {gene} {seq_id}"
+    amino_acids: bool
+    aligned: bool
+    encode_name: bool
+    wrap: bool - wrap lines with sequence
+    """
+
+    def make_name_with_lab(e):
+        labs = e.labs()
+        if labs:
+            lab = labs[0]
+            lab_ids = e.lab_ids(lab)
+            if lab_ids:
+                lab_id = lab_ids[0]
+            else:
+                lab_id = ""
+        else:
+            lab = ""
+            lab_id = ""
+        return re.sub(r"\s-", "-", re.sub(r"\s+", " ", name_format.format(name=e.name(), hi_name=e.name_hi(), passage=e.passage(), seq_id=e.seq_id(), date=e.date() or "NO-DATE", lab_id=lab_id, lab=lab, gene=e.gene())))
+
+    def make_name(e):
+        return re.sub(r"\s-", "-", re.sub(r"\s+", " ", name_format.format(name=e.name(), hi_name=e.name_hi(), passage=e.passage(), seq_id=e.seq_id(), date=e.date() or "NO-DATE", gene=e.gene())))
+
+    def make_sequence(e):
+        if amino_acids:
+            if aligned:
+                sequence = e.aa_aligned()
+            else:
+                sequence = e.aa()
+        else:
+            if aligned:
+                sequence = e.nuc_aligned()
+            else:
+                sequence = e.nuc()
+        return sequence
+
+    def truncate_extend(s, length):
+        if len(s) > length:
+            s = s[:length]
+        elif len(s) < length:
+            s = "{}{}".format(s, "-" * (length - len(s)))
+        return s
+
+    def export_fasta(f, data_to_write):
+        for n, s in data_to_write:
+            f.write(generate_one(name=n, sequence=s, encode=encode_name, split=wrap).encode("utf-8"))
+
+    def export_phylip(f, data_to_write):
+        if encode_name:
+            names = [encode_name(n) for n, s in data_to_write]
+        else:
+            names = [n for n, s in data_to_write]
+        max_s_len = max(len(s) for n, s in data_to_write)
+        max_n_len = max(len(n) for n in names)
+        f.write("{} {}\n".format(len(data_to_write), max_s_len).encode("utf-8"))
+        if wrap:
+            raise NotImplementedError("phylip with wrapping")   # http://www.molecularevolution.org/resources/fileformats/phylip_dna
+        else:
+            for no, (n, s) in enumerate(data_to_write):
+                f.write("{:<{}s}  {}{}\n".format(names[no], max_n_len, s, "-" * (max_s_len - len(s))).encode("utf-8"))
+
+    module_logger.info('Writing {}'.format(output))
+    if "lab" in name_format:
+        name_maker = make_name_with_lab
+    else:
+        name_maker = make_name
+    data_to_write = [(name_maker(e), make_sequence(e)) for e in data]
+
+    if truncate_to_most_common:
+        len_stat = collections.Counter(len(e[1]) for e in data_to_write)
+        most_common_length = len_stat.most_common(1)[0][0]
+        module_logger.info('Truncating/extending sequences to the most common length: {}'.format(most_common_length))
+        data_to_write = [(n, truncate_extend(s, most_common_length)) for n, s in data_to_write]
+
+    with open_file.open_for_writing_binary(output) as f:
+        if output_format == "fasta":
+            export_fasta(f, data_to_write)
+        elif output_format == "phylip":
+            export_phylip(f, data_to_write)
+        else:
+            raise ValueError("Unsupported output format: {}".format(output_format))
+
 
 # ----------------------------------------------------------------------
 
