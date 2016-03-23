@@ -211,6 +211,57 @@ class SeqDB:
             for seq in db_entry["s"]:
                 yield Seq(db_entry, seq)
 
+    def iterate_sequences_with(self, labs :list = None, virus_types :list = None, lineage :str = None, gene :str = "HA", aligned=False, start_date :str = None, end_date :str = None, with_hi_name=False, name_matcher :str = None):
+        """Yields Seq"""
+        if not labs:
+            labs = None
+        elif isinstance(labs, str):
+            labs = {self.normalize_lab(labs)}
+        elif isinstance(labs, (list, tuple, set)):
+            labs = set(self.normalize_lab(l) for l in labs)
+        else:
+            raise ValueError("Unrecognized labs: {}".format(labs))
+
+        if not virus_types:
+            virus_types = None
+        elif isinstance(virus_types, str):
+            virus_types = [self.normalize_virus_type(virus_types)]
+        elif isinstance(virus_types, (list, tuple, set)):
+            virus_types = [self.normalize_virus_type(vt) for vt in virus_types]
+        else:
+            raise ValueError("Unrecognized virus_types: {}".format(virus_types))
+
+        if not lineage:
+            lineage = None
+        elif isinstance(lineage, str):
+            lineage = self.normalize_lineage(lineage)
+        else:
+            raise ValueError("Unrecognized lineage: {!r}".format(lineage))
+
+        if not name_matcher:
+            name_matcher = None
+        elif isinstance(name_matcher, str):
+            name_matcher = re.compile(name_matcher, re.I)
+        else:
+            raise ValueError("Unrecognized name_matcher: {!r}".format(name_matcher))
+
+        start_date = self._fix_date(start_date)
+        end_date = self._fix_date(end_date)
+
+        for db_entry in self.data:
+            for seq in db_entry["s"]:
+                if ((not labs or (labs & set(seq["l"])))
+                     and (not virus_types or db_entry["v"] in virus_types)
+                     and (not lineage or db_entry["l"] == lineage)
+                     and gene == seq.get("g", "HA")
+                     and (not aligned or seq.get("s") is not None)
+                     and (not start_date or (db_entry.get("d") and db_entry["d"][-1] >= start_date))
+                     and (not end_date or (db_entry.get("d") and db_entry["d"][-1] < end_date))
+                     and (not with_hi_name or seq.get("h"))
+                     and (not name_matcher or name_matcher.search(seq.get("h") or "{} {}".format(db_entry["N"], seq.get("p") and seq["p"][0])))
+                     ):
+                    yield Seq(db_entry, seq)
+
     def iterate_sequences_aligned_with_virus_type(self, virus_type):
         """Yields Seq"""
         virus_type, _ = utility.fix_virus_type_lineage(virus_type)
@@ -538,8 +589,39 @@ class SeqDB:
         elif vt.upper() in ["H3", "A(H3N2)"]:
             vt = "A(H3N2)"
         else:
-            module_logger.error("Unrecognized virus type {}".format(vt))
+            raise ValueError("Unrecognized virus type {}".format(vt))
         return vt
+
+    sLabs = {"CDC": "CDC", "CNIC": "CNIC", "CRICK": "NIMR", "MELB": "MELB", "NIID": "NIID", "NIMR": "NIMR", "VDRL": "MELB"}
+
+    @classmethod
+    def normalize_lab(cls, lab):
+        try:
+            return cls.sLabs[lab.strip().upper()]
+        except:
+            raise ValueError("Unrecognized lab: {!r}".format(lab))
+
+    sLineages = {"VICTORIA": "VICTORIA", "YAMAGATA": "YAMAGATA", "VIC": "VICTORIA", "YAM": "YAMAGATA"}
+
+    @classmethod
+    def normalize_lineage(cls, lineage):
+        try:
+            return cls.sLineages[lineage.strip().upper()]
+        except:
+            raise ValueError("Unrecognized lineage: {!r}".format(lineage))
+
+    # ----------------------------------------------------------------------
+
+    sReDate = re.compile(r"^\s*(?P<year>\d\d\d\d)[-\s]*(?P<month>\d\d)[-\s]*(?P<day>\d\d)\s*$")
+
+    @classmethod
+    def _fix_date(cls, date):
+        if date:
+            m = cls.sReDate.match(date)
+            if not m:
+                raise ValueError("Cannot parse date: {!r}".format(date))
+            date = "-".join((m.group("year"), m.group("month"), m.group("day")))
+        return date
 
     # ----------------------------------------------------------------------
     # Adoption if python 3.5 bisect module functions
