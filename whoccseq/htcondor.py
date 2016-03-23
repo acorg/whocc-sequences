@@ -2,17 +2,58 @@
 # license
 # license.
 
-import sys, os, re
+import sys, os, re, collections, time, datetime
 from pathlib import Path
 import logging; module_logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------
 
+class JobError (Exception): pass
+
 class Job:
+
+    sJobStatus = {'1': 'pending', '2': 'running', '3': 'removed', '4': 'completed', '5': 'held', '6': 'transferring output', '7': 'suspended'}
 
     def __init__(self, clusters :dict):
         """clusters - cluster_id to number of jobs mapping"""
         self.clusters = clusters
+
+    def status(self):
+        # in reality needs to look into history file to check for failed jobs but it is slow
+        still_running = collections.defaultdict(int)
+        errors = []
+        for line in _run("condor_q", *list(self.clusters), "-autoformat:tl", "ClusterId", "ProcId", "JobStatus"):
+            state = dict(f.split(' = ') for f in line.split('\t'))
+            status = self.sJobStatus[state["JobStatus"]]
+            if status not in ["pending", "running", "transferring output", "completed", "suspended"]:
+                errors.append(state)
+            else:
+                still_running[state["ClusterId"]] += 1
+        if errors:
+            raise JobError(errors)
+        r = {}
+        for cluster, jobs in self.clusters.items():
+            cluster_running = still_running.get(cluster, 0)
+            if cluster_running:
+                r[cluster] = {"state": "running", "done": (jobs - cluster_running) / jobs}
+            else:
+                r[cluster] = {"state": "completed"}
+        all_jobs = sum(self.clusters.values())
+        all_running = sum(still_running.values())
+        r["all"] = {"state": "running" if all_running else "completed", "done": (all_jobs - all_running) / all_jobs}
+        return r
+
+    def wait(self, check_interval_in_seconds=30, verbose=True):
+        start = datetime.datetime.now()
+        while True:
+            time.sleep(check_interval_in_seconds)
+            status = self.status()
+            if status["all"]["state"] == "completed":
+                break
+            if verbose:
+                module_logger.info('Percent done: {:.1f}%'.format(status["all"]["done"] * 100.0))
+        if verbose:
+            module_logger.info('All done in {}'.format(datetime.datetime.now() - start))
 
 # ----------------------------------------------------------------------
 
@@ -52,8 +93,7 @@ def submit(program, program_args :list, description :str, current_dir :str, capt
     if not cluster:
         logging.error(output)
         raise RuntimeError("cluster id not found in the submission results {}".format(cluster))
-    logging.info("Cluster: {}".format(dict(cluster)))
-    return Job(cluster)
+    return Job(dict(cluster))
 
 # ----------------------------------------------------------------------
 
