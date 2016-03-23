@@ -98,7 +98,7 @@ def submit(program, program_args :list, description :str, current_dir :str, capt
 # ----------------------------------------------------------------------
 
 def _run(*program_and_args):
-    return subprocess.check_output(program_and_args), env={"LD_LIBRARY_PATH": ""}).decode("utf-8")
+    return subprocess.check_output(program_and_args, env={"LD_LIBRARY_PATH": ""}).decode("utf-8")
 
 # ======================================================================
 ### Local Variables:
