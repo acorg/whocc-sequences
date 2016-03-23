@@ -11,7 +11,9 @@ from . import htcondor
 
 def submit_to_htcondor(number_of_replicates :int, source :str, output_dir :str, garli="/syn/bin/Garli", attachmentspertaxon=1000000, randseed=-1, genthreshfortopoterm=20000, searchreps=1, strip_comments=True, email="condor@skepner.eu", notification="Error", machines :list = None):
     conf_files = [make_conf(job_no, source=source, output_dir=output_dir, attachmentspertaxon=attachmentspertaxon, randseed=randseed, genthreshfortopoterm=genthreshfortopoterm, searchreps=searchreps, strip_comments=strip_comments) for job_no in range(1, number_of_replicates + 1)]
-    job = htcondor.submit(program=garli, program_args=[[c] for c in conf_files], description="Garli: ", current_dir=output_dir, capture_stdout=False, email=email, notification=notification, machines=machines)
+    module_logger.info('{} garli conf files saved to {}'.format(len(conf_files), output_dir))
+    job = htcondor.submit(program=garli, program_args=[[Path(c).resolve()] for c in conf_files], description="Garli: ", current_dir=output_dir, capture_stdout=False, email=email, notification=notification, machines=machines)
+    module_logger.info('Jobs submitted to htcondor: {}'.format(job))
     return job
 
 # ----------------------------------------------------------------------

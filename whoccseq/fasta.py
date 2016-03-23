@@ -270,7 +270,6 @@ def export(data, output, output_format :str, truncate_to_most_common :bool, name
             for no, (n, s) in enumerate(data_to_write):
                 f.write("{:<{}s}  {}{}\n".format(names[no], max_n_len, s, "-" * (max_s_len - len(s))).encode("utf-8"))
 
-    module_logger.info('Writing {}'.format(output))
     if "lab" in name_format:
         name_maker = make_name_with_lab
     else:
@@ -290,6 +289,7 @@ def export(data, output, output_format :str, truncate_to_most_common :bool, name
             export_phylip(f, data_to_write)
         else:
             raise ValueError("Unsupported output format: {}".format(output_format))
+    module_logger.info('{} written'.format(output))
 
 
 # ----------------------------------------------------------------------

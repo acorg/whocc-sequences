@@ -2,7 +2,7 @@
 # license
 # license.
 
-import sys, os, re, collections, time, datetime
+import sys, os, re, collections, subprocess, time, datetime, pprint
 from pathlib import Path
 import logging; module_logger = logging.getLogger(__name__)
 
@@ -18,14 +18,19 @@ class Job:
         """clusters - cluster_id to number of jobs mapping"""
         self.clusters = clusters
 
+    def __str__(self):
+        return str(self.clusters)
+
     def status(self):
         # in reality needs to look into history file to check for failed jobs but it is slow
         still_running = collections.defaultdict(int)
         errors = []
-        for line in _run("condor_q", *list(self.clusters), "-autoformat:tl", "ClusterId", "ProcId", "JobStatus"):
+        output = _run("condor_q", *list(self.clusters), "-autoformat:tl", "ClusterId", "ProcId", "JobStatus", "HoldReason")
+        for line in output.splitlines():
+            # module_logger.info('Status line {}'.format(line))
             state = dict(f.split(' = ') for f in line.split('\t'))
-            status = self.sJobStatus[state["JobStatus"]]
-            if status not in ["pending", "running", "transferring output", "completed", "suspended"]:
+            state["JobStatus"] = self.sJobStatus[state["JobStatus"]]
+            if state["JobStatus"] not in ["pending", "running", "transferring output", "completed", "suspended"]:
                 errors.append(state)
             else:
                 still_running[state["ClusterId"]] += 1
@@ -61,6 +66,7 @@ sReCondorProc = re.compile(r'\*\*\s+Proc\s+(\d+)\.(\d+):')
 
 def submit(program, program_args :list, description :str, current_dir :str, capture_stdout=False, email="condor@skepner.eu", notification="Error", machines :list = None):
     current_dir = str(Path(current_dir).resolve())
+    Path(current_dir).chmod(0o777)        # to allow remote processes runinnig under user nobody to write files
     desc = [
         ["universe", "vanilla"],
         ["executable", str(Path(program).resolve())],
@@ -72,18 +78,29 @@ def submit(program, program_args :list, description :str, current_dir :str, capt
         ["description", "{} {}".format(description, current_dir)],
         [""],
         ]
-    for no, args in enumerate(program_args, start=1):
+    stderr_files = [Path(current_dir, "{:03d}.stderr".format(no)) for no, args in enumerate(program_args, start=1)]
+    for f in stderr_files:
+        f.touch()
+        f.chmod(0o777)
+    if capture_stdout:
+        stdout_files = [Path(current_dir, "{:03d}.stdout".format(no)) for no, args in enumerate(program_args, start=1)]
+        for f in stdout_files:
+            f.touch()
+            f.chmod(0o777)
+    else:
+        stdout_files = [None] * len(program_args)
+    for no, args in enumerate(program_args):
         desc.extend([
-            ["arguments", args],
-            ["error", "{}/{:03d}.stderr".format(current_dir, no)],
-            ["output", "{}/{:03d}.stdout".format(current_dir, no) if capture_stdout else None],
+            ["arguments", " ".join(str(a) for a in args)],
+            ["error", stderr_files[no] and str(stderr_files[no])],
+            ["output", stdout_files[no] and str(stdout_files[no])],
             ["queue"],
             [""],
             ])
-    desc_s = "\n".join(" = ".join(e) if len(e) == 2 else e[0] for e in desc if len(e) == 2 and e[1])
+    desc_s = "\n".join((" = ".join(e) if len(e) == 2 else e[0]) for e in desc if len(e) != 2 or e[1])
     desc_filename = str(Path(current_dir, "garli.desc"))
     with open(desc_filename, "w") as f:
-        f.write("\n".join(desc_s))
+        f.write(desc_s)
     output = _run("condor_submit", "-verbose", desc_filename)
     cluster = collections.defaultdict(int)
     for line in output.splitlines():
