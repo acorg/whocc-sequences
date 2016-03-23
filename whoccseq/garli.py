@@ -2,7 +2,7 @@
 # license
 # license.
 
-import sys, os, re
+import sys, os, re, operator
 from pathlib import Path
 import logging; module_logger = logging.getLogger(__name__)
 from . import htcondor
@@ -15,6 +15,16 @@ def submit_to_htcondor(number_of_replicates :int, source :str, output_dir :str, 
     job = htcondor.submit(program=garli, program_args=[[Path(c).resolve()] for c in conf_files], description="Garli: ", current_dir=output_dir, capture_stdout=False, email=email, notification=notification, machines=machines)
     module_logger.info('Jobs submitted to htcondor: {}'.format(job))
     return job
+
+# ----------------------------------------------------------------------
+
+sReGarliScore = re.compile(r"\[!GarliScore\s+-(\d+\.\d+)\]")
+
+def find_best_tree(output_dir :str):
+    """Gets the best tree among results genereted (eventually) by submit_to_htcondor"""
+    all_trees = sorted(([f, sReGarliScore.search(f.open().read()).group(1)] for f in Path(output_dir).glob("*.best.tre")), key=operator.itemgetter(1))
+    best_tree = all_trees[0]
+    return Path(best_tree[0].parents[0], "{}.best.phy".format(best_tree[0].name.split(".")[0])), all_trees
 
 # ----------------------------------------------------------------------
 

@@ -78,12 +78,12 @@ def submit(program, program_args :list, description :str, current_dir :str, capt
         ["description", "{} {}".format(description, current_dir)],
         [""],
         ]
-    stderr_files = [Path(current_dir, "{:03d}.stderr".format(no)) for no, args in enumerate(program_args, start=1)]
+    stderr_files = [Path(current_dir, "{:04d}.stderr".format(no)) for no, args in enumerate(program_args, start=1)]
     for f in stderr_files:
         f.touch()
         f.chmod(0o777)
     if capture_stdout:
-        stdout_files = [Path(current_dir, "{:03d}.stdout".format(no)) for no, args in enumerate(program_args, start=1)]
+        stdout_files = [Path(current_dir, "{:04d}.stdout".format(no)) for no, args in enumerate(program_args, start=1)]
         for f in stdout_files:
             f.touch()
             f.chmod(0o777)

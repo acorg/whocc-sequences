@@ -31,6 +31,9 @@ def main(args):
     fasta_m.export(data=data, output=source_fasta, output_format="fasta", truncate_to_most_common=True, name_format="{seq_id}", amino_acids=False, aligned=True, encode_name=True, wrap=False)
     job = garli.submit_to_htcondor(number_of_replicates=args.number_of_replicates, source=source_fasta, output_dir=output_dir, attachmentspertaxon=args.attachmentspertaxon, genthreshfortopoterm=args.genthreshfortopoterm, machines=args.machines and args.machines.split(","))
     job.wait(check_interval_in_seconds=30, verbose=True)
+    best_tree, all_trees = garli.find_best_tree(output_dir=output_dir)
+    module_logger.info('All trees:\n  {}'.format("\n  ".join("{} {}".format(*t) for t in all_trees)))
+    module_logger.info('The best tree is {}'.format(best_tree))
 
 # ----------------------------------------------------------------------
 
