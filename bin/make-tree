@@ -5,35 +5,51 @@
 Exports seqdb data into fasta.
 """
 
-import sys, os, re, traceback
+import sys, os, re, subprocess, traceback
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 sys.path[:0] = [os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0])))]
 import logging; module_logger = logging.getLogger(__name__)
+from pathlib import Path
 
 from whoccseq import seqdb, fasta as fasta_m, garli
 
 # ----------------------------------------------------------------------
 
 def main(args):
-    db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    data = sorted((e for e in db.iterate_sequences_with(
-        virus_types=args.virus_type,
-        lineage=args.lineage,
-        gene="HA",
-        aligned=True,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        )), key=lambda e: e.date() or "0000-00-00")
-    module_logger.info('{} entries'.format(len(data)))
+    email = "eu@antigenic-cartography.org"
+    tre_bin_dir = Path("~/GH/tre2pdf/dist").expanduser().resolve()
+    tre_scripts_dir = Path("~/GH/tre2pdf/scripts").expanduser().resolve()
     output_dir = args.output_dir[0]
-    os.makedirs(output_dir, exist_ok=True)
-    source_fasta = os.path.join(output_dir, "source.fasta")
-    fasta_m.export(data=data, output=source_fasta, output_format="fasta", truncate_to_most_common=True, name_format="{seq_id}", amino_acids=False, aligned=True, encode_name=True, wrap=False)
-    job = garli.submit_to_htcondor(number_of_replicates=args.number_of_replicates, source=source_fasta, output_dir=output_dir, attachmentspertaxon=args.attachmentspertaxon, genthreshfortopoterm=args.genthreshfortopoterm, machines=args.machines and args.machines.split(","))
-    job.wait(check_interval_in_seconds=30, verbose=True)
+
+    if not args.only_import_garli_results:
+        os.makedirs(output_dir, exist_ok=True)
+        db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+        data = sorted((e for e in db.iterate_sequences_with(
+            virus_types=args.virus_type,
+            lineage=args.lineage,
+            gene="HA",
+            aligned=True,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            )), key=lambda e: e.date() or "0000-00-00")
+        module_logger.info('{} entries'.format(len(data)))
+        source_fasta = os.path.join(output_dir, "source.fasta")
+        fasta_m.export(data=data, output=source_fasta, output_format="fasta", truncate_to_most_common=True, name_format="{seq_id}", amino_acids=False, aligned=True, encode_name=True, wrap=False)
+        job = garli.submit_to_htcondor(number_of_replicates=args.number_of_replicates, source=source_fasta, output_dir=output_dir, attachmentspertaxon=args.attachmentspertaxon, genthreshfortopoterm=args.genthreshfortopoterm, machines=args.machines and args.machines.split(","), email=email)
+        job.wait(check_interval_in_seconds=30, verbose=True)
     best_tree, all_trees = garli.find_best_tree(output_dir=output_dir)
     module_logger.info('All trees:\n  {}'.format("\n  ".join("{} {}".format(*t) for t in all_trees)))
     module_logger.info('The best tree is {}'.format(best_tree))
+    tree_json = Path(output_dir, "tree.json.xz")
+    tree_pdf = Path(output_dir, "tree.pdf")
+    subprocess.check_call([str(Path(tre_bin_dir, "newick2json")), str(best_tree), str(tree_json)])
+    module_logger.info('The best tree converted to {}'.format(tree_json))
+    subprocess.check_call([str(Path(tre_scripts_dir, "tre-seqdb")), "--dates", "--clade", "--pos=all", "--branch-annotations", "--branch-ids", str(tree_json), str(tree_json)])
+    module_logger.info('The best tree updated with dates, clades, branch annotations in {}'.format(tree_json))
+    subprocess.check_call([str(Path(tre_bin_dir, "tre2pdf")), "--ladderize", "--continents", "--clades", "--show-branch-ids", str(tree_json), str(tree_pdf)])
+    module_logger.info('{} for the best tree generated'.format(tree_pdf))
+    if not args.only_import_garli_results:
+        subprocess.call("echo '{}' | /usr/bin/mail -s '{}' {}".format(sys.argv, sys.argv[0], email), shell=True)
 
 # ----------------------------------------------------------------------
 
@@ -64,6 +80,7 @@ try:
     parser.add_argument('--attachmentspertaxon', action='store', dest='attachmentspertaxon', type=int, default=2000)
     parser.add_argument('--genthreshfortopoterm', action='store', dest='genthreshfortopoterm', type=int, default=20000)
     parser.add_argument('--machines', action='store', dest='machines', default=None, help="Comma separated list: i19,i20,i21,o16,o17,odette")
+    parser.add_argument('--import-garli-results', action='store_true', dest='only_import_garli_results', default=False, help="Do not submit htcondor jobs, just import results")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
     with utility.timeit(sys.argv[0]):
