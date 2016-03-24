@@ -23,7 +23,7 @@ def main(args):
 
     if not args.only_import_garli_results:
         os.makedirs(output_dir, exist_ok=True)
-        export(output_dir, args)
+        source_fasta = export(output_dir, args)
         job = garli.submit_to_htcondor(number_of_replicates=args.number_of_replicates, source=source_fasta, output_dir=output_dir, attachmentspertaxon=args.attachmentspertaxon, genthreshfortopoterm=args.genthreshfortopoterm, machines=args.machines and args.machines.split(","), email=email)
         job.wait(check_interval_in_seconds=30, verbose=True)
     best_tree, all_trees = garli.find_best_tree(output_dir=output_dir)
@@ -72,6 +72,7 @@ def export(output_dir, args):
     module_logger.info('{} entries'.format(len(data)))
     source_fasta = os.path.join(output_dir, "source.fasta")
     fasta_m.export(data=data, output=source_fasta, output_format="fasta", truncate_to_most_common=True, name_format="{seq_id}", amino_acids=False, aligned=True, encode_name=True, wrap=False)
+    return source_fasta
 
 # ----------------------------------------------------------------------
 
