@@ -46,7 +46,7 @@ def main(args):
     module_logger.info('The best tree converted to {}'.format(tree_json))
     subprocess.check_call([str(Path(tre_scripts_dir, "tre-seqdb")), "--dates", "--clade", "--pos=all", "--branch-annotations", "--branch-ids", str(tree_json), str(tree_json)])
     module_logger.info('The best tree updated with dates, clades, branch annotations in {}'.format(tree_json))
-    subprocess.check_call([str(Path(tre_bin_dir, "tre2pdf")), "--ladderize", "--continents", "--clades", "--show-branch-ids", str(tree_json), str(tree_pdf)])
+    subprocess.check_call([str(Path(tre_bin_dir, "tre2pdf")), "--ladderize", "--fix-labels", "--continents", "--clades", "--show-branch-ids", str(tree_json), str(tree_pdf)])
     module_logger.info('{} for the best tree generated'.format(tree_pdf))
     if not args.only_import_garli_results:
         subprocess.call("echo '{}' | /usr/bin/mail -s '{}' {}".format(sys.argv, sys.argv[0], email), shell=True)
