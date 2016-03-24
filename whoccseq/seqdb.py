@@ -87,7 +87,7 @@ class Seq:
             s = ("-" * shift) + s
         return s
 
-    def aa_aligned(self):
+    def aa_aligned(self, truncate=None):
         shift = self.shift()
         if shift is None:
             raise RuntimeError("Not aligned")
@@ -104,6 +104,11 @@ class Seq:
             s = "X".join(e[1] for e in sorted((p if i == 0 else (p[0], "X" * len(p[1])) for i, p in enumerate(parts)), key=operator.itemgetter(0)))
             # strip trailing Xs
             s = self.sReTrailingXs.sub("", s)
+        if truncate is not None:
+            if len(s) < truncate:
+                s = "{}{}".format(s, "-" * (truncate - len(s)))
+            elif len(s) > truncate:
+                s = s[:truncate]
         return s
 
     def gene(self):
@@ -141,6 +146,17 @@ class Seq:
 
     def set_clades(self, clades):
         self.seq["c"] = clades
+
+# ----------------------------------------------------------------------
+
+def most_common_length(sequences, amino_acid=True):
+    """Returns most common length for the passed list of Seq"""
+    if amino_acid:
+        extract = Seq.aa_aligned
+    else:
+        extract = Seq.nuc_aligned
+    len_stat = collections.Counter(len(extract(e)) for e in sequences)
+    return len_stat.most_common(1)[0][0]
 
 # ----------------------------------------------------------------------
 
