@@ -23,18 +23,7 @@ def main(args):
 
     if not args.only_import_garli_results:
         os.makedirs(output_dir, exist_ok=True)
-        db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-        data = sorted((e for e in db.iterate_sequences_with(
-            virus_types=args.virus_type,
-            lineage=args.lineage,
-            gene="HA",
-            aligned=True,
-            start_date=args.start_date,
-            end_date=args.end_date,
-            )), key=lambda e: e.date() or "0000-00-00")
-        module_logger.info('{} entries'.format(len(data)))
-        source_fasta = os.path.join(output_dir, "source.fasta")
-        fasta_m.export(data=data, output=source_fasta, output_format="fasta", truncate_to_most_common=True, name_format="{seq_id}", amino_acids=False, aligned=True, encode_name=True, wrap=False)
+        export(output_dir, args)
         job = garli.submit_to_htcondor(number_of_replicates=args.number_of_replicates, source=source_fasta, output_dir=output_dir, attachmentspertaxon=args.attachmentspertaxon, genthreshfortopoterm=args.genthreshfortopoterm, machines=args.machines and args.machines.split(","), email=email)
         job.wait(check_interval_in_seconds=30, verbose=True)
     best_tree, all_trees = garli.find_best_tree(output_dir=output_dir)
@@ -55,6 +44,37 @@ def main(args):
 
 # ----------------------------------------------------------------------
 
+def export(output_dir, args):
+    db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+    if args.base_seq:
+        base_seqs = [e for e in db.iterate_sequences_with_name(args.base_seq)]
+        if len(base_seqs) != 1:
+            raise ValueError("{} base sequences selected: {}".format(len(base_seqs), " ".join(repr(s.name_hi()) for s in base_seqs)))
+        del base_seqs[1:]
+        if not args.virus_type:
+            args.virus_type = base_seqs[0].virus_type()
+        elif db.normalize_virus_type(args.virus_type) != base_seqs[0].virus_type():
+            raise ValueError("Virus type {} requested conflicts with base sequence virus type {}".format(args.virus_type, base_seqs[0].virus_type()))
+    else:
+        base_seqs = []
+    seqs = list(db.iterate_sequences_with(
+        virus_types=args.virus_type,
+        lineage=args.lineage,
+        gene="HA",
+        aligned=True,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        ))
+    if args.hamming_distance_threshold:
+        most_common_length = seqdb.most_common_length(seqs, amino_acid=False)
+        seqs = list(filter(lambda s: base_seqs[0].hamming_distance(s, amino_acid=False, truncate=most_common_length) < args.hamming_distance_threshold, seqs))
+    data = sorted(base_seqs + seqs, key=lambda e: e.date() or "0000-00-00")
+    module_logger.info('{} entries'.format(len(data)))
+    source_fasta = os.path.join(output_dir, "source.fasta")
+    fasta_m.export(data=data, output=source_fasta, output_format="fasta", truncate_to_most_common=True, name_format="{seq_id}", amino_acids=False, aligned=True, encode_name=True, wrap=False)
+
+# ----------------------------------------------------------------------
+
 try:
     import argparse
     from whoccseq import utility
@@ -62,6 +82,8 @@ try:
     parser.add_argument('output_dir', nargs=1, help='Output dir.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     # parser.add_argument('--lab', action='store', dest='lab', default=None, help='Export just for this lab.')
+    parser.add_argument('--base-seq', action='store', dest='base_seq', default=None, help='Base sequence to export together with other sequences.')
+    parser.add_argument('--hamming-distance-threshold', action='store', type=int, dest='hamming_distance_threshold', default=150, help='Select only sequences having hamming distance to the base sequence less than threshold. Use 150 for nucs (H3).')
     parser.add_argument('--flu', action='store', dest='virus_type', default=None, help='Export just for this virus type/subtype: B, H1, H3, A(H1N1), A(H3N2).')
     parser.add_argument('--lineage', action='store', dest='lineage', default=None, help='Export just for this lineage: VICTORIA, YAMAGATA, 2009PDM.')
     # parser.add_argument('--gene', action='store', dest='gene', default="HA", help='HA or NA.')
