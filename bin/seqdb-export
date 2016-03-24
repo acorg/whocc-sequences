@@ -17,8 +17,20 @@ from whoccseq import fasta as fasta_m, open_file, utility
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    # if args.base_seq:
-    data = [e for e in db.iterate_sequences_with(
+    if args.base_seq:
+        base_seqs = [e for e in db.iterate_sequences_with_name(args.base_seq)]
+        if len(base_seqs) != 1:
+            raise ValueError("{} base sequences selected: {}".format(len(base_seqs), " ".join(repr(s.name_hi()) for s in base_seqs)))
+        del base_seqs[1:]
+        if not args.virus_type:
+            args.virus_type = base_seqs[0].virus_type()
+        elif db.normalize_virus_type(args.virus_type) != base_seqs[0].virus_type():
+            raise ValueError("Virus type {} requested conflicts with base sequence virus type {}".format(args.virus_type, base_seqs[0].virus_type()))
+    else:
+        base_seqs = []
+        if args.hamming_distance_threshold is not None:
+            raise ValueError("--hamming-distance-threshold provided without --base-seq")
+    seqs = list(db.iterate_sequences_with(
         labs=args.lab,
         virus_types=args.virus_type,
         lineage=args.lineage,
@@ -27,7 +39,12 @@ def main(args):
         start_date=args.start_date,
         end_date=args.end_date,
         with_hi_name=args.with_hi_name,
-        name_matcher=args.name_match)]
+        name_matcher=args.name_match,
+        ))
+    if args.hamming_distance_threshold:
+        most_common_length = seqdb.most_common_length(seqs, amino_acid=args.amino_acids)
+        seqs = list(filter(lambda s: base_seqs[0].hamming_distance(s, amino_acid=args.amino_acids, truncate=most_common_length) < args.hamming_distance_threshold, seqs))
+    data = base_seqs + seqs
     module_logger.info('{} entries'.format(len(data)))
     if args.sort_by == "date":
         data.sort(key=lambda e: e.date() or "0000-00-00") # entries lacking date come first
@@ -70,6 +87,7 @@ try:
     parser.add_argument('--name-match', action='store', dest='name_match', default=None, help='Export sequences with names matching this regex.')
     parser.add_argument('--most-common-length', action='store_true', dest='most_common_length', default=False, help='Truncate or extend with - all sequences to make them all of the same length, most common among original sequences.')
     parser.add_argument('--base-seq', action='store', dest='base_seq', default=None, help='Base sequence to export together with other sequences.')
+    parser.add_argument('--hamming-distance-threshold', action='store', type=int, dest='hamming_distance_threshold', default=None, help='Select only sequences having hamming distance to the base sequence less than threshold. Use 150 for nucs (H3).')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
