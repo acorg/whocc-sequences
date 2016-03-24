@@ -44,6 +44,8 @@ def main(args):
     tree_pdf = Path(output_dir, "tree.pdf")
     subprocess.check_call([str(Path(tre_bin_dir, "newick2json")), str(best_tree), str(tree_json)])
     module_logger.info('The best tree converted to {}'.format(tree_json))
+    subprocess.check_call([str(Path(tre_scripts_dir, "tre-continent")), str(tree_json), str(tree_json)])
+    module_logger.info('The best tree updated with continents in {}'.format(tree_json))
     subprocess.check_call([str(Path(tre_scripts_dir, "tre-seqdb")), "--dates", "--clade", "--pos=all", "--branch-annotations", "--branch-ids", str(tree_json), str(tree_json)])
     module_logger.info('The best tree updated with dates, clades, branch annotations in {}'.format(tree_json))
     subprocess.check_call([str(Path(tre_bin_dir, "tre2pdf")), "--ladderize", "--fix-labels", "--continents", "--clades", "--show-branch-ids", str(tree_json), str(tree_pdf)])
