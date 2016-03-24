@@ -39,10 +39,10 @@ class Seq:
         return self.seq.get("h")
 
     def name_hi(self):
-        return self.hi_name() or "{} {}".format(self.name(), self.passage())
+        return self.hi_name() or (self.name() + " " + self.passage())
 
     def seq_id(self):
-        return "{}__{}".format(self.name(), self.passage())
+        return self.name() + "__" + self.passage()
 
     def virus_type(self):
         return self.db_entry["v"]
@@ -76,40 +76,62 @@ class Seq:
             d = d[-1]
         return d
 
-    def nuc_aligned(self):
+    def aligned(self, amino_acid :bool, truncate :int = None):
+        if amino_acid:
+            return self.aa_aligned(truncate=truncate)
+        else:
+            return self.nuc_aligned(truncate=truncate)
+
+    def nuc_aligned(self, truncate=None):
         shift = self.nuc_shift()
         if shift is None:
             raise RuntimeError("Not aligned")
-        s = self.nuc()
-        if shift < 0:
-            s = s[-shift:]
-        elif shift > 0:
-            s = ("-" * shift) + s
-        return s
+        s = self._shift(self.nuc(), shift, fill="-")
+        return self._truncate(s, truncate)
 
     def aa_aligned(self, truncate=None):
         shift = self.shift()
         if shift is None:
             raise RuntimeError("Not aligned")
-        s = self.aa()
-        if shift < 0:
-            s = s[-shift:]
-        elif shift > 0:
-            s = ("X" * shift) + s
+        s = self._shift(self.aa(), shift, fill="X")
         if True:
             # find the longest part not having *, replace other parts with X
             parts = sorted(enumerate(s.split("*")), key=lambda e: len(e[1]), reverse=True)
             if len(parts) == 2 and parts[1][1] == "":
                 parts = parts[:1]
             s = "X".join(e[1] for e in sorted((p if i == 0 else (p[0], "X" * len(p[1])) for i, p in enumerate(parts)), key=operator.itemgetter(0)))
-            # strip trailing Xs
-            s = self.sReTrailingXs.sub("", s)
+            if truncate is None:
+                # strip trailing Xs
+                s = self.sReTrailingXs.sub("", s)
+        return self._truncate(s, truncate)
+
+    @classmethod
+    def _shift(cls, seq, shift, fill):
+        if shift < 0:
+            seq = seq[-shift:]
+        elif shift > 0:
+            seq = (fill * shift) + seq
+        return seq
+
+    @classmethod
+    def _truncate(cls, seq, truncate):
         if truncate is not None:
-            if len(s) < truncate:
-                s = "{}{}".format(s, "-" * (truncate - len(s)))
-            elif len(s) > truncate:
-                s = s[:truncate]
-        return s
+            if len(seq) < truncate:
+                seq = seq + "-" * (truncate - len(seq))
+            elif len(seq) > truncate:
+                seq = seq[:truncate]
+        return seq
+
+    def hamming_distance(self, other :"Seq", amino_acid :bool, truncate :int = None):
+        s1 = self.aligned(amino_acid=amino_acid, truncate=truncate)
+        s2 = other.aligned(amino_acid=amino_acid, truncate=truncate)
+        l = min(len(s1), len(s2))
+        return sum(1 for pos in range(l) if s1[pos] != s2[pos])
+
+    def hamming_distance_many(self, other :list, amino_acid :bool):
+        """Returns list of distances (int), order is the same as other"""
+        most_common_length = most_common_length(other, amino_acid=amino_acid)
+        return [self.hamming_distance(e, amino_acid=amino_acid, truncate=most_common_length) for e in other]
 
     def gene(self):
         return self.seq.get("g", "HA")
@@ -151,11 +173,7 @@ class Seq:
 
 def most_common_length(sequences, amino_acid=True):
     """Returns most common length for the passed list of Seq"""
-    if amino_acid:
-        extract = Seq.aa_aligned
-    else:
-        extract = Seq.nuc_aligned
-    len_stat = collections.Counter(len(extract(e)) for e in sequences)
+    len_stat = collections.Counter(len(e.aligned(amino_acid=amino_acid)) for e in sequences)
     return len_stat.most_common(1)[0][0]
 
 # ----------------------------------------------------------------------
@@ -289,13 +307,13 @@ class SeqDB:
 
     def iterate_sequences_with_name(self, names):
         """Yields Seq"""
-        if isinstance(names, str):
-            names = [names]
-        for name in names:
+        for raw_name in ([names] if isinstance(names, str) else names):
+            name, passage = self._split_name(raw_name)
             db_entry = self.find_by_name(name)
             if db_entry:
                 for seq in db_entry["s"]:
-                    yield Seq(db_entry, seq)
+                    if not passage or passage in seq["p"]:
+                        yield Seq(db_entry, seq)
             else:
                 module_logger.error('{!r} not found in the database'.format(name))
 
@@ -578,12 +596,13 @@ class SeqDB:
 
     # ----------------------------------------------------------------------
 
+    sReNamePrefix = re.compile(r"^(B|A|A\(H\d+\)|A\(H\d+N\d+\))", re.I)
     sReYear = re.compile(r"^/(19[0-9][0-9]|20[0-2][0-9])$")
 
     def _split_name(self, raw_name):
         name = None
         passage = None
-        if raw_name[:2] == "B/" or raw_name[:8] in ["A(H1N1)/", "A(H2N3)/"]:
+        if self.sReNamePrefix.match(raw_name):
             fields = raw_name.split()
             for name_parts in range(len(fields)):
                 if self.sReYear.match(fields[name_parts][-5:]):

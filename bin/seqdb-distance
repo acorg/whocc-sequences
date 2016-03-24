@@ -31,18 +31,12 @@ def main(args):
             end_date=args.end_date,
             name_matcher=args.name_match[0])]
         module_logger.info('{} matches found for {}'.format(len(data), args.name_match[0]))
-        most_common_length = seqdb.most_common_length(data)
+        most_common_length = seqdb.most_common_length(data, amino_acid=args.amino_acids)
         module_logger.info('Most common length {}'.format(most_common_length))
-        base_seq_aa = base_seq.aa_aligned(truncate=most_common_length)
-        other_seq_aa = sorted(([e.name_hi(), distance(base_seq_aa, e.aa_aligned(truncate=most_common_length))] for e in data), key=operator.itemgetter(1))
+        distances = sorted(([e.name_hi(), base_seq.hamming_distance(e, amino_acid=args.amino_acids, truncate=most_common_length)] for e in data), key=operator.itemgetter(1))
         print(base_seq.name_hi())
-        print("\n".join("{:6d} {}".format(e[1], e[0]) for e in other_seq_aa))
+        print("\n".join("{:6d} {}".format(e[1], e[0]) for e in distances))
         print()
-
-# ----------------------------------------------------------------------
-
-def distance(s1, s2):
-    return sum(1 for pos, aa in enumerate(s1) if s2[pos] != aa)
 
 # ----------------------------------------------------------------------
 
@@ -52,7 +46,7 @@ try:
     parser.add_argument('base_seq', nargs=1, help='Sequence name to print distances to.')
     parser.add_argument('name_match', nargs=1, help='Regexp to select other sequences.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    # parser.add_argument('--amino-acids', action='store_true', dest='amino_acids', default=False, help='Export amino-acids instead of nucleotites')
+    parser.add_argument('--amino-acids', action='store_true', dest='amino_acids', default=False, help='Report distances for amino-acids instead of nucleotites')
     parser.add_argument('--start-date', action='store', dest='start_date', default=None, help='Export sequences for antigens isolated on or after that date (YYYYMMDD).')
     parser.add_argument('--end-date', action='store', dest='end_date', default=None, help='Export sequences for antigens isolated before that date (YYYYMMDD).')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
