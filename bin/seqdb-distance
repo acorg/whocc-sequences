@@ -17,25 +17,27 @@ from whoccseq import seqdb, utility
 
 def main(args):
     db = seqdb.SeqDB(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-    base_seq = [e for e in db.iterate_sequences_with_name(args.base_seq[0])]
-    if len(base_seq) > 1:
-        module_logger.warning("Multiple base sequences selected for {}:\n  {}".format(args.base_seq[0], "\n  ".join(s.name_hi() for s in base_seq)))
-    elif not base_seq:
+    base_seqs = [e for e in db.iterate_sequences_with_name(args.base_seq[0])]
+    if len(base_seqs) > 1:
+        module_logger.warning("Multiple base sequences selected for {}:\n  {}".format(args.base_seq[0], "\n  ".join(s.name_hi() for s in base_seqs)))
+    elif not base_seqs:
         raise ValueError("No base sequences selected for {}".format(args.base_seq[0]))
-    base_seq = base_seq[0]
-    data = [e for e in db.iterate_sequences_with(
-        virus_types=base_seq.virus_type(),
-        lineage=base_seq.lineage(),
-        aligned=True,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        name_matcher=args.name_match[0])]
-    module_logger.info('{} matches found for {}'.format(len(data), args.name_match[0]))
-    most_common_length = seqdb.most_common_length(data)
-    module_logger.info('Most common length {}'.format(most_common_length))
-    base_seq_aa = base_seq.aa_aligned(truncate=most_common_length)
-    other_seq_aa = sorted(([e.name_hi(), distance(base_seq_aa, e.aa_aligned(truncate=most_common_length))] for e in data), key=operator.itemgetter(1))
-    print("\n".join("{:3d} {}".format(e[1], e[0]) for e in other_seq_aa))
+    for base_seq in base_seqs:
+        data = [e for e in db.iterate_sequences_with(
+            virus_types=base_seq.virus_type(),
+            lineage=base_seq.lineage(),
+            aligned=True,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            name_matcher=args.name_match[0])]
+        module_logger.info('{} matches found for {}'.format(len(data), args.name_match[0]))
+        most_common_length = seqdb.most_common_length(data)
+        module_logger.info('Most common length {}'.format(most_common_length))
+        base_seq_aa = base_seq.aa_aligned(truncate=most_common_length)
+        other_seq_aa = sorted(([e.name_hi(), distance(base_seq_aa, e.aa_aligned(truncate=most_common_length))] for e in data), key=operator.itemgetter(1))
+        print(base_seq.name_hi())
+        print("\n".join("{:6d} {}".format(e[1], e[0]) for e in other_seq_aa))
+        print()
 
 # ----------------------------------------------------------------------
 
