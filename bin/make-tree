@@ -68,7 +68,10 @@ def export(output_dir, args):
     if args.hamming_distance_threshold:
         most_common_length = seqdb.most_common_length(seqs, amino_acid=False)
         seqs = list(filter(lambda s: base_seqs[0].hamming_distance(s, amino_acid=False, truncate=most_common_length) < args.hamming_distance_threshold, seqs))
-    data = sorted(base_seqs + seqs, key=lambda e: e.date() or "0000-00-00")
+    all_seqs = base_seqs + seqs
+    # elimiate duplicates by seq_id (garli cannot handle it)
+    seq_id_to_seq = {e.seq_id(): e for e in all_seqs}
+    data = sorted(seq_id_to_seq.values(), key=lambda e: e.date() or "0000-00-00")
     module_logger.info('{} entries'.format(len(data)))
     source_fasta = os.path.join(output_dir, "source.fasta")
     fasta_m.export(data=data, output=source_fasta, output_format="fasta", truncate_to_most_common=True, name_format="{seq_id}", amino_acids=False, aligned=True, encode_name=True, wrap=False)
