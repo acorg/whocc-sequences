@@ -73,7 +73,7 @@ def submit(program, program_args :list, description :str, current_dir :str, capt
         ["should_transfer_files", "NO"],
         ["notify_user", email],
         ["notification", notification],
-        ["Requirements", "({})".format(" || ".join('machine == "{}"'.format(m) for m in machines)) if machines else None],
+        ["Requirements", "({})".format(" || ".join('machine == "{}"'.format(fix_machine_name(m)) for m in machines)) if machines else None],
         ["initialdir", current_dir],
         ["description", "{} {}".format(description, current_dir)],
         [""],
@@ -111,6 +111,12 @@ def submit(program, program_args :list, description :str, current_dir :str, capt
         logging.error(output)
         raise RuntimeError("cluster id not found in the submission results {}".format(cluster))
     return Job(dict(cluster))
+
+# ----------------------------------------------------------------------
+
+sMachineName = {"albertine": "i19", "odette": "odette.antigenic-cartography.org", "i18": "odette.antigenic-cartography.org"}
+def fix_machine_name(machine):
+    return sMachineName.get(machine, machine)
 
 # ----------------------------------------------------------------------
 
