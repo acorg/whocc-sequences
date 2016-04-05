@@ -408,7 +408,7 @@ class SeqDB:
             if entry is None:
                 if name[:8] not in ["A(H1N1)/", "A(H3N2)/"] and name[:2] != "B/":
                     module_logger.warning('Suspicious name {!r}'.format(name))
-                entry = {"N": name, "s": [], "v": data["virus_type"], "d": []}
+                entry = {"N": name, "s": [], "v": data["virus_type"]}
                 self._insert_by_name(entry)
             try:
                 new = self._update_db_entry(entry, data)
@@ -427,8 +427,8 @@ class SeqDB:
     def _update_db_entry(self, entry, data):
         if entry["v"] != data["virus_type"]:
             raise RuntimeError("Cannot add {!r} to {!r} db entry\n{}\n{}".format(data["virus_type"], entry["v"], data, entry))
-        if data.get("date") and data["date"] not in entry["d"]:
-            entry["d"].append(data["date"])
+        if data.get("date") and data["date"] not in entry.get("d", []):
+            entry.setdefault("d", []).append(data["date"])
             entry["d"].sort()
         sameseq = self._look_for_the_same_sequence(entry, data)
         new = False
