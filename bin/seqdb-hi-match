@@ -55,7 +55,7 @@ def match(db, hi):
                         break
             if hi_entry:
                 try:
-                    matches = match_passages(name, [e2["p"] or [""] for e2 in e2l], [(v3, e3.get("p", "")) for v3, e3 in hi_entry["v"].items()])
+                    matches = match_passages(name, [e2.get("p") or [""] for e2 in e2l], [(v3, e3.get("p", "")) for v3, e3 in hi_entry["v"].items()])
                 except:
                     module_logger.error('hi_entry {}'.format(hi_entry))
                     module_logger.error('e2l {}'.format(e2l))
@@ -69,7 +69,7 @@ def apply_matches(matches, name, db_entry, seq_entries, hi_entry, vt, hi):
     global STAT_WHOCC_ANNUAL_REPORT
     for m in matches:
         for seq_entry in seq_entries:
-            if m[0] in seq_entry["p"] or (m[0] == "" and not seq_entry["p"]):
+            if m[0] in seq_entry.get("p", []) or (m[0] == "" and not seq_entry.get("p")):
                 seq_entry["h"] = "{} {}".format(name, m[1])
                 if vt == "B":
                     update_b_lineage(name=name, hi_name=seq_entry["h"], db_entry=db_entry, hi_entry=hi_entry)
@@ -114,9 +114,10 @@ def update_lineage(name, hi_name, db_entry, lineage):
 
 def update_date(name, hi_name, db_entry, hi_entry):
     for date in hi_entry.get("d", []):
-        if date not in db_entry["d"]:
-            db_entry["d"].append(date)
-    db_entry["d"].sort()
+        if date not in db_entry.get("d", []):
+            db_entry.setdefault("d", []).append(date)
+    if db_entry.get("d"):
+        db_entry["d"].sort()
 
 # ----------------------------------------------------------------------
 
