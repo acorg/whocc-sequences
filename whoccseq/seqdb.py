@@ -183,7 +183,7 @@ def most_common_length(sequences, amino_acid=True):
 #     "N": <name>,
 #     "s": [
 #         {
-#             "p": <list of passages (str)>,
+#             ["p": <list of passages (str)>,]
 #             "n": <sequence-nucleotides>,
 #             "a": <sequence-amino-acids>,
 #             "s": <shift (int) for aa sequence>,
@@ -312,7 +312,7 @@ class SeqDB:
             db_entry = self.find_by_name(name)
             if db_entry:
                 for seq in db_entry["s"]:
-                    if not passage or passage in seq["p"]:
+                    if not passage or passage in seq.get("p", []):
                         yield Seq(db_entry, seq)
             else:
                 module_logger.error('{!r} not found in the database'.format(name))
@@ -410,7 +410,15 @@ class SeqDB:
                     module_logger.warning('Suspicious name {!r}'.format(name))
                 entry = {"N": name, "s": [], "v": data["virus_type"], "d": []}
                 self._insert_by_name(entry)
-            new = self._update_db_entry(entry, data)
+            try:
+                new = self._update_db_entry(entry, data)
+            except Exclude as err:
+                module_logger.info('Sequence excluded ({}): {}'.format(err, data["name"]))
+                new = False
+                if not entry["s"]:        # no sequences in entry, remove the entry
+                    index = self.find_by_name(entry["N"], return_index=True)
+                    if index is not None:
+                        del self.data[index]
         else:
             module_logger.warning('Entry without name: {}'.format(data["lab_id"]))
             new = False
@@ -424,21 +432,18 @@ class SeqDB:
             entry["d"].sort()
         sameseq = self._look_for_the_same_sequence(entry, data)
         new = False
-        try:
-            if sameseq is None:
-                new_entry = {"l": {}, "p": []}
-                self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new", db_entry=entry)
-                entry["s"].append(new_entry)
-                module_logger.debug('new sequence entry added {} {}'.format(data["name"], data.get("passage", "")))
-                new = True
-            elif sameseq["type"] == "update":
-                self._update_entry_passage(entry_passage=entry["s"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"], db_entry=entry)
-            elif sameseq["type"] == "different-genes":
-                module_logger.warning(sameseq["message"])
-            else:
-                module_logger.error("[INTERNAL] Unrecoginzed sameseq: {}".format(sameseq))
-        except Exclude as err:
-            module_logger.info('Sequence excluded ({}): {}'.format(err, data["name"]))
+        if sameseq is None:
+            new_entry = {"l": {}, "g": "HA"}
+            self._update_entry_passage(entry_passage=new_entry, data=data, sequence_match="new", db_entry=entry)
+            entry["s"].append(new_entry)
+            module_logger.debug('new sequence entry added {} {}'.format(data["name"], data.get("passage", "")))
+            new = True
+        elif sameseq["type"] == "update":
+            self._update_entry_passage(entry_passage=entry["s"][sameseq["index"]], data=data, sequence_match=sameseq["sequence_match"], db_entry=entry)
+        elif sameseq["type"] == "different-genes":
+            module_logger.warning(sameseq["message"])
+        else:
+            module_logger.error("[INTERNAL] Unrecoginzed sameseq: {}".format(sameseq))
         return new
 
     def _look_for_the_same_sequence(self, entry, data):
@@ -451,7 +456,7 @@ class SeqDB:
         for e_no, e in enumerate(entry["s"]):
             sequence_match = self._sequences_match(master=e["n"], s=data["sequence"])
             if sequence_match:
-                if data_passage and data_passage not in e["p"]:
+                if data_passage and data_passage not in e.get("p", []):
                     # if e["p"]:
                     #     module_logger.warning('[SAMESEQ] different passages {!r} {!r} {!r}'.format(data["name"], e["p"], data_passage))
                     r = {"type": "update", "sequence_match": sequence_match, "index": e_no}
@@ -474,8 +479,8 @@ class SeqDB:
         return r
 
     def _update_entry_passage(self, entry_passage, data, sequence_match, db_entry):
-        if data.get("passage") and data["passage"] not in entry_passage["p"]:
-            entry_passage["p"].append(data["passage"])
+        if data.get("passage") and data["passage"] not in entry_passage.get("p", []):
+            entry_passage.setdefault("p", []).append(data["passage"])
         lab_e = entry_passage["l"].setdefault(data["lab"], [])
         if data.get("lab_id") and data["lab_id"] not in lab_e:
             lab_e.append(data["lab_id"])
@@ -564,7 +569,7 @@ class SeqDB:
     def _multiple_sequences_per_passage(self, entry):
         passages = {}
         for e in entry["s"]:
-            for p in e["p"]:
+            for p in e.get("p", []):
                 passages.setdefault(p, []).append(e.get("g"))
         return sorted(p for p, g in passages.items() if len(set(g)) != len(g))
 
@@ -661,14 +666,14 @@ class SeqDB:
     # ----------------------------------------------------------------------
     # Adoption if python 3.5 bisect module functions
 
-    def find_by_name(self, name):
+    def find_by_name(self, name, return_index=False):
         lo = 0
         hi = len(self.data)
         while lo < hi:
             mid = (lo + hi) // 2
             mid_name = self.data[mid]["N"]
             if mid_name == name:
-                return self.data[mid]
+                return mid if return_index else self.data[mid]
             if mid_name < name:
                 lo = mid + 1
             else:

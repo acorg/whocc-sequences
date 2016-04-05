@@ -44,7 +44,7 @@ def read_file_one_by_one_update_db(db, files):
 # ----------------------------------------------------------------------
 
 def read_file(file_entry):
-    csv_filename = file_entry["f"].replace(".fas.bz2", ".csv.bz2")
+    csv_filename = file_entry["f"].replace(".fas", ".csv")
     if os.path.isfile(csv_filename):
         data = fasta_old.read_fasta_with_csv(fasta_file=file_entry["f"], csv_file=csv_filename, **file_entry)
     else:
@@ -54,7 +54,11 @@ def read_file(file_entry):
 # ----------------------------------------------------------------------
 
 def make_file_entry(db, fn):
-    lab, subtype, date, *rest = os.path.basename(fn).split("-")
+    try:
+        lab, subtype, date, *rest = os.path.basename(fn).split("-")
+    except ValueError:
+        # lab, subtype, date = "UNKNOWN", "B", "19000101"
+        raise
     return {"lab": lab.upper(), "virus_type": db.normalize_virus_type(subtype), "date": date, "f": fn}
 
 # ----------------------------------------------------------------------
